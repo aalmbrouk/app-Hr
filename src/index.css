@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 1. Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. Hide all non-printable controls specifically */
+  .print\:hidden,
+  aside,
+  header,
+  nav {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 3. Make all printable document containers and their descendants visible */
+  #PRINT_LEAVE_FORM,
+  #PRINT_LEAVE_FORM *,
+  #EMPLOYEE_BADGE_PRINT_CARD,
+  #EMPLOYEE_BADGE_PRINT_CARD *,
+  #OFFICIAL_REPORT_DOCUMENT,
+  #OFFICIAL_REPORT_DOCUMENT *,
+  #PRINT_PROMOTIONS_REPORT,
+  #PRINT_PROMOTIONS_REPORT *,
+  #PRINT_LEAVE_STATEMENT_REPORT,
+  #PRINT_LEAVE_STATEMENT_REPORT *,
+  #PRINT_PROCEDURE_DOCUMENT,
+  #PRINT_PROCEDURE_DOCUMENT * {
+    visibility: visible;
+  }
+
+  /* 4. Position the active printable container at top-left and fill page */
+  #PRINT_LEAVE_FORM,
+  #EMPLOYEE_BADGE_PRINT_CARD,
+  #OFFICIAL_REPORT_DOCUMENT,
+  #PRINT_PROMOTIONS_REPORT,
+  #PRINT_LEAVE_STATEMENT_REPORT,
+  #PRINT_PROCEDURE_DOCUMENT {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 6mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* 5. Special sizing for Employee Badge ID Card to prevent blowing up to full page */
+  #EMPLOYEE_BADGE_PRINT_CARD {
+    position: absolute !important;
+    left: 50% !important;
+    top: 20mm !important;
+    transform: translateX(-50%) !important;
+    width: 380px !important;
+    max-width: 380px !important;
+    border: 2px solid #7f1d1d !important;
+    padding: 16px !important;
+    background: white !important;
+  }
+
+  .avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+}
+
