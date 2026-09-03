@@ -18,7 +18,8 @@ import {
   UserX,
   Clock,
   Sliders,
-  Database
+  Database,
+  Award
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -69,10 +70,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null
     },
     {
+      id: 'annual_evaluations' as ActiveTab,
+      label: 'تقارير الكفاءة السنوية',
+      icon: Award,
+      badge: 'A4 رسمي'
+    },
+    {
       id: 'general_procedures' as ActiveTab,
       label: 'الإجراءات الوظيفية والقرارات العامة',
       icon: FileCode2,
       badge: 'جديد'
+    },
+    {
+      id: 'historical_418' as ActiveTab,
+      label: 'سجلات المسار التاريخي / اللائحة 418',
+      icon: History,
+      badge: 'لائحة 418'
     },
     {
       id: 'org_structure' as ActiveTab,
@@ -100,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'resignations' as ActiveTab,
-      label: 'الاستقالات ونهاية الخدمة',
+      label: 'الاستقالات ونهاية الخدمة والنقل الخارجي',
       icon: UserX,
       badge: null
     },
@@ -121,9 +134,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const systemNavItems = [
     {
       id: 'reports' as ActiveTab,
-      label: 'التقارير والتصدير (PDF/Excel)',
+      label: 'مركز التقارير والتصدير',
       icon: FileSpreadsheet,
-      badge: null
+      badge: 'Builder'
     },
     {
       id: 'statistics' as ActiveTab,
@@ -148,6 +161,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'النسخ الاحتياطي والإعدادات',
       icon: HardDrive,
       badge: null
+    },
+    {
+      id: 'excel_validation' as ActiveTab,
+      label: 'استيراد وفحص بيانات Excel',
+      icon: FileSpreadsheet,
+      badge: 'فحص آمن'
     },
     {
       id: 'vba_code' as ActiveTab,

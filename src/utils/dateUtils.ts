@@ -4,7 +4,7 @@
  */
 
 import { Employee, IncrementRecord, HrRule, PublicHoliday } from '../types';
-import { parseGradeNumber } from './hrCalculations';
+import { parseGradeNumber, isOutsideCadreStatus } from './hrCalculations';
 
 // Default Libyan Public Holidays (YYYY-MM-DD)
 export const DEFAULT_PUBLIC_HOLIDAYS: string[] = [
@@ -323,81 +323,167 @@ export function calculateWorkingDaysBetween(
   };
 }
 
+export interface AnnualIncrementCalculationResult {
+  employeeId: number;
+  employeeName: string;
+  jobNumber: string;
+  currentGrade: string;
+  currentIncrement: number;
+  gradeEntryDateStorage: string;
+  gradeEntryDateDisplay: string;
+  lastIncrementDateStorage: string;
+  lastIncrementDateDisplay: string;
+  calculationDateStorage: string;
+  calculationDateDisplay: string;
+  completedYears: number;
+  incrementsDue: number;
+  recommendedIncrement: number;
+  resultDisplay: string;
+  nextIncrementDateStorage: string;
+  nextIncrementDateDisplay: string;
+  incrementStatus: 'مستحقة' | 'سارية' | 'مكتملة الحد الأقصى';
+  referenceDateUsed: string;
+  referenceDateType: 'تاريخ آخر علاوة' | 'تاريخ الدرجة الحالية';
+  isEligibleForNewIncrement: boolean;
+}
+
 /**
- * Requirement #27, #28, #29, #30: Annual Increment Engine
- * Calculates increments due based on selected method:
- * 'Anniversary Date' (Same Date as Last Increment) vs 'January 1st'
+ * Annual Increment Calculation Engine
+ * CORE RULE: "تاريخ الدرجة الحالية" is a historical/reference date and MUST NEVER be modified by increment calculation.
+ * Completed years are calculated strictly between the applicable reference date (Last Increment Date or Grade Entry Date)
+ * and the Calculation Date (today's date or custom reference date).
  */
 export function calculateAnnualIncrements(
   employee: Employee,
   method: 'Anniversary Date' | 'January 1st' = 'Anniversary Date',
-  asOfDateStr?: string
-): {
-  currentIncrement: number;
-  incrementsDue: number;
-  recommendedIncrement: number;
-  lastIncrementDateStorage: string;
-  nextIncrementDateStorage: string;
-  nextIncrementDateDisplay: string;
-  incrementStatus: 'مستحقة' | 'سارية' | 'مكتملة الحد الأقصى';
-} {
-  const asOf = asOfDateStr ? new Date(normalizeDateStorage(asOfDateStr)) : new Date();
+  asOfDateStr?: string,
+  incrementsHistory?: IncrementRecord[]
+): AnnualIncrementCalculationResult {
   const currentIncrement = Number(employee.currentIncrement || 1);
-  
-  // Last Increment Date or Grade Entry Date or Directing Date
-  const lastIncStr = normalizeDateStorage(employee.gradeEntryDate || employee.eligibilityDate || employee.directingDate || employee.hireDate) || '2022-05-18';
-  const lastIncDate = new Date(lastIncStr);
+  const calcDateStorage = normalizeDateStorage(asOfDateStr) || getTodayDateStorage();
+  const calcDate = new Date(calcDateStorage);
 
-  if (isNaN(lastIncDate.getTime())) {
-    return {
-      currentIncrement,
-      incrementsDue: 0,
-      recommendedIncrement: currentIncrement,
-      lastIncrementDateStorage: lastIncStr,
-      nextIncrementDateStorage: '',
-      nextIncrementDateDisplay: '',
-      incrementStatus: 'سارية'
-    };
-  }
+  // 1. Historical Grade Entry Date (تاريخ الدرجة الحالية - ثابت وغير قابل للتعديل التلقائي)
+  const gradeEntryDateStorage = normalizeDateStorage(
+    employee.gradeEntryDate || employee.directingDate || employee.hireDate
+  ) || '2022-05-18';
+  const gradeEntryDate = new Date(gradeEntryDateStorage);
 
-  let nextIncDate = new Date(lastIncDate);
-
-  if (method === 'January 1st') {
-    // January 1st of each subsequent year
-    nextIncDate = new Date(lastIncDate.getFullYear() + 1, 0, 1);
-  } else {
-    // Anniversary method: same day/month next year
-    nextIncDate.setFullYear(lastIncDate.getFullYear() + 1);
-  }
-
-  let incrementsDue = 0;
-  let tempNext = new Date(nextIncDate);
-
-  while (asOf >= tempNext && (currentIncrement + incrementsDue) < 15) {
-    incrementsDue++;
-    if (method === 'January 1st') {
-      tempNext.setFullYear(tempNext.getFullYear() + 1);
-    } else {
-      tempNext.setFullYear(tempNext.getFullYear() + 1);
+  // 2. Determine Last Increment Date (تاريخ آخر علاوة)
+  // Check if we have past recorded increments for this employee
+  let lastIncrementDateStorage = '';
+  if (incrementsHistory && incrementsHistory.length > 0) {
+    const empIncs = incrementsHistory
+      .filter((inc) => inc.employeeId === employee.id && inc.effectiveDate)
+      .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
+    if (empIncs.length > 0 && empIncs[0].effectiveDate) {
+      lastIncrementDateStorage = normalizeDateStorage(empIncs[0].effectiveDate);
     }
   }
 
-  const ny = tempNext.getFullYear();
-  const nm = String(tempNext.getMonth() + 1).padStart(2, '0');
-  const nd = String(tempNext.getDate()).padStart(2, '0');
+  let referenceDateStorage = gradeEntryDateStorage;
+  let referenceDateType: 'تاريخ آخر علاوة' | 'تاريخ الدرجة الحالية' = 'تاريخ الدرجة الحالية';
+
+  if (lastIncrementDateStorage && !isNaN(new Date(lastIncrementDateStorage).getTime())) {
+    referenceDateStorage = lastIncrementDateStorage;
+    referenceDateType = 'تاريخ آخر علاوة';
+  } else {
+    // If no explicit last increment record, check if eligibilityDate or gradeEntryDate
+    referenceDateStorage = gradeEntryDateStorage;
+    referenceDateType = 'تاريخ الدرجة الحالية';
+  }
+
+  const refDate = new Date(referenceDateStorage);
+
+  if (isNaN(refDate.getTime()) || isNaN(calcDate.getTime())) {
+    return {
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+      jobNumber: employee.jobNumber,
+      currentGrade: employee.jobGrade,
+      currentIncrement,
+      gradeEntryDateStorage,
+      gradeEntryDateDisplay: formatDateDisplay(gradeEntryDateStorage),
+      lastIncrementDateStorage: referenceDateStorage,
+      lastIncrementDateDisplay: formatDateDisplay(referenceDateStorage),
+      calculationDateStorage: calcDateStorage,
+      calculationDateDisplay: formatDateDisplay(calcDateStorage),
+      completedYears: 0,
+      incrementsDue: 0,
+      recommendedIncrement: currentIncrement,
+      resultDisplay: `${employee.jobGrade} + ${currentIncrement} علاوة`,
+      nextIncrementDateStorage: '',
+      nextIncrementDateDisplay: '',
+      incrementStatus: 'سارية',
+      referenceDateUsed: referenceDateStorage,
+      referenceDateType,
+      isEligibleForNewIncrement: false
+    };
+  }
+
+  // 3. Calculate full completed annual periods between reference date and calculation date
+  let completedYears = calculateYearsDifference(refDate, calcDate);
+
+  let incrementsDue = 0;
+  let recommendedIncrement = currentIncrement;
+  let nextIncDateObj = new Date(refDate);
+
+  if (referenceDateType === 'تاريخ آخر علاوة') {
+    // If counting from last received increment:
+    // Completed full years since last increment = number of new increments due
+    incrementsDue = Math.max(0, completedYears);
+    recommendedIncrement = Math.min(15, currentIncrement + incrementsDue);
+
+    // Next anniversary date
+    nextIncDateObj.setFullYear(refDate.getFullYear() + (incrementsDue + 1));
+  } else {
+    // Counting from Grade Entry Date:
+    // E.g. Grade Entry Date: 18/05/2022, Current Increment: 3, Calculation Date: 24/08/2026 -> 4 completed years -> Total 7
+    incrementsDue = Math.max(0, completedYears);
+    recommendedIncrement = Math.min(15, currentIncrement + incrementsDue);
+
+    // Next increment date is 1 year after the latest completed period
+    nextIncDateObj.setFullYear(gradeEntryDate.getFullYear() + (completedYears + 1));
+  }
+
+  if (method === 'January 1st') {
+    nextIncDateObj = new Date(nextIncDateObj.getFullYear(), 0, 1);
+  }
+
+  const ny = nextIncDateObj.getFullYear();
+  const nm = String(nextIncDateObj.getMonth() + 1).padStart(2, '0');
+  const nd = String(nextIncDateObj.getDate()).padStart(2, '0');
   const nextIncrementDateStorage = `${ny}-${nm}-${nd}`;
 
-  const recommendedIncrement = Math.min(15, currentIncrement + incrementsDue);
-  const incrementStatus = currentIncrement >= 15 ? 'مكتملة الحد الأقصى' : (incrementsDue > 0 ? 'مستحقة' : 'سارية');
+  const isEligibleForNewIncrement = incrementsDue > 0 && currentIncrement < 15;
+  const incrementStatus = currentIncrement >= 15 
+    ? 'مكتملة الحد الأقصى' 
+    : (isEligibleForNewIncrement ? 'مستحقة' : 'سارية');
+
+  const resultDisplay = `${employee.jobGrade} + ${recommendedIncrement} علاوة`;
 
   return {
+    employeeId: employee.id,
+    employeeName: employee.fullName,
+    jobNumber: employee.jobNumber,
+    currentGrade: employee.jobGrade,
     currentIncrement,
-    incrementsDue,
+    gradeEntryDateStorage,
+    gradeEntryDateDisplay: formatDateDisplay(gradeEntryDateStorage),
+    lastIncrementDateStorage: referenceDateStorage,
+    lastIncrementDateDisplay: formatDateDisplay(referenceDateStorage),
+    calculationDateStorage: calcDateStorage,
+    calculationDateDisplay: formatDateDisplay(calcDateStorage),
+    completedYears,
+    incrementsDue: isEligibleForNewIncrement ? incrementsDue : 0,
     recommendedIncrement,
-    lastIncrementDateStorage: lastIncStr,
+    resultDisplay,
     nextIncrementDateStorage,
     nextIncrementDateDisplay: formatDateDisplay(nextIncrementDateStorage),
-    incrementStatus
+    incrementStatus,
+    referenceDateUsed: referenceDateStorage,
+    referenceDateType,
+    isEligibleForNewIncrement
   };
 }
 
@@ -470,7 +556,10 @@ export function calculatePromotionRecommendation(
   let status: 'مستحق للترقية' | 'قريب من الاستحقاق' | 'غير مستحق' | 'مراجعة يدوية' = 'غير مستحق';
   let notes = '';
 
-  if (yearsInGrade >= requiredYears || currentIncrement >= requiredYears + 1) {
+  if (isOutsideCadreStatus(employee.status) || employee.isOutsideCadre) {
+    status = 'غير مستحق';
+    notes = `الموظف خارج الملاك الوظيفي (${employee.status})`;
+  } else if (yearsInGrade >= requiredYears || currentIncrement >= requiredYears + 1) {
     status = 'مستحق للترقية';
     notes = `مستوفٍ للسنوات القانونية بالدرجة (${yearsInGrade.toFixed(1)} سنة) والعلاوات (${currentIncrement})`;
   } else if (yearsInGrade >= requiredYears - 0.5) {

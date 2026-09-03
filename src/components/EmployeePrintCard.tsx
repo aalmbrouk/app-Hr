@@ -15,13 +15,12 @@ export const EmployeePrintCard: React.FC<EmployeePrintCardProps> = ({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
 
-  if (!employee) return null;
-
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportPdf = async () => {
+    if (!employee) return;
     setIsExportingPdf(true);
     setExportSuccess(false);
 
@@ -44,6 +43,8 @@ export const EmployeePrintCard: React.FC<EmployeePrintCardProps> = ({
       setIsExportingPdf(false);
     }
   };
+
+  if (!employee) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">

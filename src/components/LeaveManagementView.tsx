@@ -337,20 +337,22 @@ export const LeaveManagementView: React.FC<LeaveManagementViewProps> = ({
       </div>
 
       {/* Leave Entry / Management Modal */}
-      <LeaveModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        employees={employees}
-        initialEmpId={preSelectedEmpId}
-        existingLeaveToModify={modifyLeave}
-        leaves={leaves}
-        rules={rules}
-        publicHolidaysList={publicHolidaysList}
-        officialLogoUrl={officialLogoUrl}
-        onAddLeave={onAddLeave}
-        onUpdateLeave={onUpdateLeave}
-        currentUser={currentUser}
-      />
+      {isModalOpen && (
+        <LeaveModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          employees={employees}
+          initialEmpId={preSelectedEmpId}
+          existingLeaveToModify={modifyLeave}
+          leaves={leaves}
+          rules={rules}
+          publicHolidaysList={publicHolidaysList}
+          officialLogoUrl={officialLogoUrl}
+          onAddLeave={onAddLeave}
+          onUpdateLeave={onUpdateLeave}
+          currentUser={currentUser}
+        />
+      )}
 
       {/* Printable Official Leave Form A4 Modal (PRINT_LEAVE_FORM with rich options) */}
       {printLeave && (

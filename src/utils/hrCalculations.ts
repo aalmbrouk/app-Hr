@@ -253,3 +253,26 @@ export function calculateWorkingDays(startDateStr: string, endDateStr: string): 
   return calculateWorkingDaysBetween(startDateStr, endDateStr).workingDays;
 }
 
+/**
+ * Checks if a given employee status classifies them as Outside the Functional Establishment (خارج الملاك الوظيفي)
+ */
+export function isOutsideCadreStatus(status?: string): boolean {
+  if (!status) return false;
+  return (
+    status === 'منقول خارجياً' ||
+    status === 'مستقيل' ||
+    status === 'منهي خدماته' ||
+    status === 'متقاعد' ||
+    status === 'متوفى'
+  );
+}
+
+/**
+ * Checks if an employee is currently active inside the functional establishment
+ */
+export function isEmployeeActiveInCadre(employee: Partial<Employee>): boolean {
+  if (!employee || !employee.status) return true;
+  if (employee.isOutsideCadre) return false;
+  return !isOutsideCadreStatus(employee.status);
+}
+

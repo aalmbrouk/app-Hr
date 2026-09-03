@@ -54,8 +54,6 @@ export const LeaveModal: React.FC<LeaveModalProps> = ({
   onUpdateLeave,
   currentUser = 'الشؤون الإدارية'
 }) => {
-  if (!isOpen) return null;
-
   // Active Tab Mode: 'new' (New Leave) or 'modification' (Extend / Reduce / Interrupt / Correct)
   const [activeTabMode, setActiveTabMode] = useState<'new' | 'modification'>(
     existingLeaveToModify ? 'modification' : 'new'
@@ -369,6 +367,8 @@ export const LeaveModal: React.FC<LeaveModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewLeave, showUnsavedPrompt, isDirty]);
+
+  if (!isOpen) return null;
 
   return (
     <>

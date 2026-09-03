@@ -14,10 +14,43 @@ import {
   GeneralProcedure,
   OrganizationalUnit,
   JobTitle,
-  HrRule
+  HrRule,
+  BulkOperationRecord,
+  CareerPromotionRecord,
+  EmployeeQualificationRecord,
+  AnnualPerformanceEvaluation
 } from '../types';
 import { DEFAULT_HR_RULES } from '../utils/hrCalculations';
-export { DEFAULT_HR_RULES };
+import { DEFAULT_APPOINTMENT_GRADE_CONFIGS } from '../utils/appointmentGradeUtils';
+export { DEFAULT_HR_RULES, DEFAULT_APPOINTMENT_GRADE_CONFIGS };
+
+// Educational Degrees (Dropdown exact options as requested)
+export const EDUCATIONAL_DEGREES = [
+  'دورة تدريبية',
+  'ثانوية عامة',
+  'دبلوم متوسط',
+  'دبلوم عالي',
+  'بكالوريوس',
+  'ليسانس',
+  'ماجستير',
+  'دكتوراه'
+] as const;
+
+// Education Types (Public vs Private vs Not Applicable)
+export const EDUCATION_TYPES = [
+  'جامعة عامة',
+  'جامعة خاصة',
+  'غير منطبق'
+] as const;
+
+// Record Types for Employee Qualifications & Training History
+export const QUALIFICATION_RECORD_TYPES = [
+  'مؤهل علمي',
+  'دورة تدريبية',
+  'شهادة مهنية',
+  'برنامج تدريبي',
+  'أخرى'
+] as const;
 
 // High-level Assignment Categories
 export const ASSIGNMENT_CATEGORIES = ['إداري', 'طبي'] as const;
@@ -134,6 +167,19 @@ export const JOB_GRADES = [
   'الدرجة الخامسة عشر'
 ];
 
+export const COMMON_NATIONALITIES = [
+  'ليبي',
+  'مصري',
+  'تونسي',
+  'سوداني',
+  'سوري',
+  'أردني',
+  'فلسطيني',
+  'تشادي',
+  'نيجري',
+  'أخرى'
+];
+
 export const HIRING_ENTITIES = [
   'وزارة الصحة - ليبيا',
   'مصرف الدم المركزي بلدية المرج',
@@ -169,13 +215,30 @@ export const INITIAL_SETTINGS: SystemSettings = {
   maxRecordsPerPage: 20,
   autoLog: true,
   themeColor: '#991b1b',
-  isSheetProtected: true
+  isSheetProtected: true,
+  generalManagerName: 'نجيب صالح سالم',
+  generalManagerTitle: 'مدير عام مصرف الدم المركزي المرج',
+  hrOfficerName: 'شؤون الموظفين',
+  appointmentGradeConfigs: DEFAULT_APPOINTMENT_GRADE_CONFIGS
 };
 
-export const INITIAL_EMPLOYEES: Employee[] = [
+/**
+ * PRODUCTION INITIAL STATE:
+ * Clean, empty employee database for production first launch.
+ * Zero demo employees are loaded on production startup.
+ */
+export const INITIAL_EMPLOYEES: Employee[] = [];
+
+/**
+ * OPTIONAL DEMO DATA (FOR DEVELOPMENT & DEMO TESTING ONLY):
+ * Clearly isolated demo dataset for testing system functionality and calculations.
+ */
+export const DEMO_EMPLOYEES: Employee[] = [
   {
     id: 1001,
     jobNumber: '1001/م',
+    nationality: 'ليبي',
+    documentType: 'الرقم الوطني',
     nationalId: '119850123456',
     fullName: 'د. طارق مسعود سالم الفيتوري',
     motherName: 'فاطمة علي الفيتوري',
@@ -187,7 +250,9 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     hireDate: '2010-02-15',
     directingDate: '2010-03-01',
     bloodBankStartDate: '2012-01-10',
+    appointmentSalarySystem: 'جدول مرتبات القانون 15',
     appointmentGrade: 'الدرجة السابعة',
+    appointmentIncrements: 0,
     salaryScale: 'جدول مرتبات الكادر الطبي والطب المساعد',
     jobGrade: 'الدرجة العاشرة',
     currentIncrement: 3,
@@ -210,6 +275,8 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 1002,
     jobNumber: '1002/م',
+    nationality: 'ليبي',
+    documentType: 'الرقم الوطني',
     nationalId: '219900987654',
     fullName: 'م. أمل مفتاح الصابر العبيدي',
     motherName: 'زينب محمد العبيدي',
@@ -221,7 +288,9 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     hireDate: '2014-06-10',
     directingDate: '2014-07-01',
     bloodBankStartDate: '2014-07-01',
+    appointmentSalarySystem: 'جدول مرتبات القانون 15',
     appointmentGrade: 'الدرجة السادسة',
+    appointmentIncrements: 0,
     salaryScale: 'جدول العناصر الطبية المساعدة',
     jobGrade: 'الدرجة الثامنة',
     currentIncrement: 2,
@@ -244,6 +313,8 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 1003,
     jobNumber: '1003/م',
+    nationality: 'ليبي',
+    documentType: 'الرقم الوطني',
     nationalId: '119880345678',
     fullName: 'أ. خالد ابراهيم البرعصي',
     motherName: 'مريم خليفة البرعصي',
@@ -278,6 +349,8 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 1004,
     jobNumber: '1004/م',
+    nationality: 'ليبي',
+    documentType: 'الرقم الوطني',
     nationalId: '219930456123',
     fullName: 'منى عمر خليفة الدرسي',
     motherName: 'سالمة فرج الدرسي',
@@ -312,6 +385,8 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 1005,
     jobNumber: '1005/م',
+    nationality: 'ليبي',
+    documentType: 'الرقم الوطني',
     nationalId: '119910567890',
     fullName: 'عبدالسلام فرج المنفي',
     motherName: 'عائشة سعد المنفي',
@@ -345,7 +420,128 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   }
 ];
 
-export const INITIAL_LEAVES: LeaveTransaction[] = [
+export const INITIAL_LEAVES: LeaveTransaction[] = [];
+export const INITIAL_PROMOTIONS: PromotionRecord[] = [];
+export const INITIAL_INCREMENTS: IncrementRecord[] = [];
+export const INITIAL_SECONDMENTS: SecondmentRecord[] = [];
+export const INITIAL_TRANSFERS: TransferRecord[] = [];
+export const INITIAL_DISCIPLINARY: DisciplinaryRecord[] = [];
+export const INITIAL_RESIGNATIONS: ResignationRecord[] = [];
+export const INITIAL_SETTLEMENTS: StatusSettlementRecord[] = [];
+export const INITIAL_GENERAL_PROCEDURES: GeneralProcedure[] = [];
+export const INITIAL_BULK_OPERATIONS: BulkOperationRecord[] = [];
+export const INITIAL_CAREER_RECORDS: CareerPromotionRecord[] = [];
+export const INITIAL_ANNUAL_EVALUATIONS: AnnualPerformanceEvaluation[] = [];
+
+export const DEMO_ANNUAL_EVALUATIONS: AnnualPerformanceEvaluation[] = [
+  {
+    id: 'EVAL-2025-1001-01',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'د. طارق مسعود سالم الفيتوري',
+    nationalId: '119850123456',
+    evaluationYear: 2025,
+    periodStart: '01/01/2025',
+    periodEnd: '31/12/2025',
+    periodText: 'للمدة التي تبتدئ من 01/01/2025 وتنتهي في 31/12/2025',
+    birthDateAndPlace: '1985-04-12 - المرج',
+    hireDate: '2010-02-15',
+    qualification: 'دكتوراه طب بشرى / دكتوراه علوم',
+    qualificationDate: '2010-02-15',
+    currentJobTitle: 'طبيب بشرى أخصائي',
+    currentGrade: 'الدرجة العاشرة',
+    gradeDate: '2021-01-01',
+    workplace: 'قسم الأطباء والتقييم الطبي',
+    nationality: 'ليبي',
+    sector: 'الصحة',
+    mode: 'إلكتروني',
+    status: 'معتمد',
+    scores: {
+      duty_quantity: { score: 15, notes: 'إنتاجية استثنائية' },
+      duty_quality: { score: 15, notes: 'دقة عالية في الفحوصات الطبية' },
+      duty_tools_care: { score: 8, notes: 'محافظة ممتازة على أجهزة المختبر وبنك الدم' },
+      duty_coordination: { score: 7, notes: 'تنسيق ممتاز مع الكادر الطبي' },
+      punc_work_time_care: { score: 15, notes: 'انضباط كامل طوال ساعات الدوام' },
+      punc_respect_timing: { score: 10, notes: 'التزام بالمناوبات والمواعيد' },
+      init_accept_criticism: { score: 2, notes: '' },
+      init_innovation_progress: { score: 3, notes: 'مبادرات متميزة في تطوير الفحص' },
+      init_responsibility: { score: 3, notes: 'تحمل مسؤولية كاملة' },
+      init_alertness_conduct: { score: 2, notes: '' },
+      init_supervision_ability: { score: 3, notes: 'قيادة ممتازة لفريق العمل' },
+      init_appearance: { score: 2, notes: '' },
+      rel_colleagues_superiors: { score: 6, notes: 'تعاون وثيق وروح فريق' },
+      rel_public_treatment: { score: 5, notes: 'معاملة راقية مع المتبرعين بالدم' },
+      rel_general_work: { score: 4, notes: '' }
+    },
+    totalScore: 98,
+    performanceScore: 98,
+    performanceScoreJustification: 'طبيب أخصائي متميز بأداء واجباته والالتزام والانضباط الكامل',
+    adjustedScore: 98,
+    adjustedScoreJustification: 'لا يوجد تعديل، الدرجة مستحقة بالكامل',
+    performanceRating: 'ممتاز',
+    recommendations: {
+      exceptionalBonusOrAllowance: 'نعم',
+      nominationForPromotion: 'نعم',
+      trainingNeeds: 'لا',
+      transferToAnotherJob: 'لا',
+      generalNotes: 'يوصى بتقديره رسمياً'
+    },
+    directSupervisorName: 'د. مسعود خليفة',
+    directSupervisorJobOrGrade: 'رئيس قسم الأطباء',
+    directSupervisorSignatureDate: '2025-12-30',
+    higherSupervisorName: 'نجيب صالح سالم',
+    higherSupervisorJobOrGrade: 'مدير عام مصرف الدم المركزي المرج',
+    higherSupervisorSignatureDate: '2025-12-31',
+    hrPreparerName: 'خالد ابراهيم البرعصي',
+    hrPreparationDate: '2025-12-28',
+    createdBy: 'admin1',
+    createdAt: '2025-12-28 10:00'
+  },
+  {
+    id: 'EVAL-2026-1002-02',
+    employeeId: 1002,
+    fileNumber: '1002/م',
+    employeeName: 'م. أمل مفتاح الصابر العبيدي',
+    nationalId: '219900234567',
+    evaluationYear: 2026,
+    periodStart: '01/01/2026',
+    periodEnd: '31/12/2026',
+    periodText: 'للمدة التي تبتدئ من 01/01/2026 وتنتهي في 31/12/2026',
+    birthDateAndPlace: '1990-09-22 - البيضاء',
+    hireDate: '2014-06-01',
+    qualification: 'بكالوريوس تقنية مختبرات طبية',
+    qualificationDate: '2013-07-15',
+    currentJobTitle: 'فني مختبر رئيسي',
+    currentGrade: 'الدرجة الثامنة',
+    gradeDate: '2022-01-01',
+    workplace: 'قسم الفحوصات والتحاليل الطبية',
+    nationality: 'ليبي',
+    sector: 'الصحة',
+    mode: 'يدوي',
+    status: 'جاهز للطباعة',
+    scores: {},
+    totalScore: '',
+    performanceScore: '',
+    adjustedScore: '',
+    performanceRating: '',
+    recommendations: {
+      exceptionalBonusOrAllowance: '',
+      nominationForPromotion: '',
+      trainingNeeds: '',
+      transferToAnotherJob: ''
+    },
+    directSupervisorName: '',
+    directSupervisorJobOrGrade: 'رئيس قسم الفحوصات',
+    higherSupervisorName: 'نجيب صالح سالم',
+    higherSupervisorJobOrGrade: 'مدير عام مصرف الدم المركزي المرج',
+    hrPreparerName: 'خالد ابراهيم البرعصي',
+    hrPreparationDate: '2026-01-15',
+    createdBy: 'admin1',
+    createdAt: '2026-01-15 09:30'
+  }
+];
+
+export const DEMO_LEAVES: LeaveTransaction[] = [
   {
     id: 'LV-2026-001',
     employeeId: 1002,
@@ -402,7 +598,118 @@ export const INITIAL_LEAVES: LeaveTransaction[] = [
   }
 ];
 
-export const INITIAL_PROMOTIONS: PromotionRecord[] = [
+export const DEMO_CAREER_RECORDS: CareerPromotionRecord[] = [
+  {
+    id: 'CAR-2022-001',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'تعيين',
+    previousGrade: 'الدرجة السادسة',
+    previousIncrement: 0,
+    newGrade: 'الدرجة السادسة',
+    newIncrement: 0,
+    actionDate: '2022-01-01',
+    decisionDate: '2021-12-15',
+    decisionNumber: 'DEC-2021-01',
+    issuingAuthority: 'وزارة الصحة - ليبيا',
+    notes: 'قرار التعيين والمباشرة الأصلية بالدولة',
+    createdBy: 'admin1',
+    createdAt: '2022-01-01 08:00'
+  },
+  {
+    id: 'CAR-2023-001',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'علاوة دورية',
+    previousGrade: 'الدرجة السادسة',
+    previousIncrement: 0,
+    newGrade: 'الدرجة السادسة',
+    newIncrement: 1,
+    actionDate: '2023-01-01',
+    decisionDate: '2022-12-28',
+    decisionNumber: 'INC-2023-01',
+    issuingAuthority: 'مصرف الدم المركزي المرج',
+    notes: 'علاوة سنوية دورية استحقاق يناير 2023',
+    createdBy: 'admin1',
+    createdAt: '2023-01-01 08:00'
+  },
+  {
+    id: 'CAR-2024-001',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'علاوة دورية',
+    previousGrade: 'الدرجة السادسة',
+    previousIncrement: 1,
+    newGrade: 'الدرجة السادسة',
+    newIncrement: 2,
+    actionDate: '2024-01-01',
+    decisionDate: '2023-12-25',
+    decisionNumber: 'INC-2024-01',
+    issuingAuthority: 'مصرف الدم المركزي المرج',
+    notes: 'علاوة سنوية دورية استحقاق يناير 2024',
+    createdBy: 'admin1',
+    createdAt: '2024-01-01 08:00'
+  },
+  {
+    id: 'CAR-2025-001',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'ترقية',
+    previousGrade: 'الدرجة السادسة',
+    previousIncrement: 2,
+    newGrade: 'الدرجة الخامسة',
+    newIncrement: 0,
+    actionDate: '2025-01-01',
+    decisionDate: '2024-12-20',
+    decisionNumber: 'PRM-2025-12',
+    issuingAuthority: 'وزارة الصحة / إدارة الشؤون الإدارية',
+    notes: 'ترقية دورية اعتيادية لاستيفاء المدة القانونية',
+    createdBy: 'admin1',
+    createdAt: '2025-01-01 08:00'
+  },
+  {
+    id: 'CAR-2026-001',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'علاوة دورية',
+    previousGrade: 'الدرجة الخامسة',
+    previousIncrement: 0,
+    newGrade: 'الدرجة الخامسة',
+    newIncrement: 1,
+    actionDate: '2026-01-01',
+    decisionDate: '2025-12-28',
+    decisionNumber: 'INC-2026-01',
+    issuingAuthority: 'مصرف الدم المركزي المرج',
+    notes: 'علاوة سنوية دورية استحقاق يناير 2026',
+    createdBy: 'admin1',
+    createdAt: '2026-01-01 08:00'
+  },
+  {
+    id: 'CAR-2026-002',
+    employeeId: 1001,
+    fileNumber: '1001/م',
+    employeeName: 'أحمد خليفة سالم العبيدي',
+    actionType: 'ندب على درجة',
+    previousGrade: 'الدرجة الخامسة',
+    previousIncrement: 1,
+    newGrade: 'الدرجة الرابعة',
+    newIncrement: 3,
+    actionDate: '2026-08-10',
+    decisionDate: '2026-08-10',
+    decisionNumber: 'SEC-GRD-2026-44',
+    issuingAuthority: 'وزارة الصحة - قرار وزاري رقم 44',
+    notes: 'ندب وظيفي رسمي على الدرجة الرابعة و3 علاوات',
+    createdBy: 'admin1',
+    createdAt: '2026-08-10 10:00'
+  }
+];
+
+export const DEMO_PROMOTIONS: PromotionRecord[] = [
   {
     id: 'PRM-2021-001',
     employeeId: 1001,
@@ -425,7 +732,7 @@ export const INITIAL_PROMOTIONS: PromotionRecord[] = [
   }
 ];
 
-export const INITIAL_INCREMENTS: IncrementRecord[] = [
+export const DEMO_INCREMENTS: IncrementRecord[] = [
   {
     id: 'INC-2023-001',
     employeeId: 1001,
@@ -441,7 +748,7 @@ export const INITIAL_INCREMENTS: IncrementRecord[] = [
   }
 ];
 
-export const INITIAL_SECONDMENTS: SecondmentRecord[] = [
+export const DEMO_SECONDMENTS: SecondmentRecord[] = [
   {
     id: 'SEC-2025-001',
     employeeId: 1003,
@@ -459,7 +766,7 @@ export const INITIAL_SECONDMENTS: SecondmentRecord[] = [
   }
 ];
 
-export const INITIAL_TRANSFERS: TransferRecord[] = [
+export const DEMO_TRANSFERS: TransferRecord[] = [
   {
     id: 'TRN-2022-001',
     employeeId: 1005,
@@ -476,13 +783,7 @@ export const INITIAL_TRANSFERS: TransferRecord[] = [
   }
 ];
 
-export const INITIAL_DISCIPLINARY: DisciplinaryRecord[] = [];
-
-export const INITIAL_RESIGNATIONS: ResignationRecord[] = [];
-
-export const INITIAL_SETTLEMENTS: StatusSettlementRecord[] = [];
-
-export const INITIAL_GENERAL_PROCEDURES: GeneralProcedure[] = [
+export const DEMO_GENERAL_PROCEDURES: GeneralProcedure[] = [
   {
     id: 'PRC-2026-001',
     employeeId: 1001,
@@ -514,6 +815,65 @@ export const INITIAL_GENERAL_PROCEDURES: GeneralProcedure[] = [
     notes: 'إرفاق الشواهد في الأرشيف الإلكتروني',
     createdBy: 'admin2',
     createdAt: '2026-03-01 09:30'
+  }
+];
+
+export const INITIAL_QUALIFICATIONS: EmployeeQualificationRecord[] = [];
+
+export const DEMO_QUALIFICATIONS: EmployeeQualificationRecord[] = [
+  {
+    id: 'QUAL-2026-001',
+    employeeId: 1001,
+    employeeName: 'د. طارق مسعود سالم الفيتوري',
+    fileNumber: '1001/م',
+    recordType: 'مؤهل علمي',
+    title: 'دكتوراه طب بشري وأمراض الدم',
+    specialization: 'طب وجراحة / أمراض الدم ونقل الدم',
+    issuingAuthority: 'جامعة بنغازي - كلية الطب البشري',
+    universityOrInstitute: 'جامعة بنغازي',
+    educationType: 'جامعة عامة',
+    graduationYear: '2015',
+    completionDate: '2015-06-30',
+    certificateNumber: 'MED-PHD-8821',
+    notes: 'معادلة ومعتمدة من وزارة التعليم العالي',
+    createdBy: 'admin1',
+    createdAt: '2026-01-10 10:00'
+  },
+  {
+    id: 'QUAL-2026-002',
+    employeeId: 1001,
+    employeeName: 'د. طارق مسعود سالم الفيتوري',
+    fileNumber: '1001/م',
+    recordType: 'دورة تدريبية',
+    title: 'إدارة وتأكيد جودة بنوك الدم المتقدمة',
+    specialization: 'سلامة نقل الدم وضبط الجودة',
+    issuingAuthority: 'منظمة الصحة العالمية WHO / وزارة الصحة',
+    executor: 'المركز الوطني لتطوير النظام الصحي',
+    duration: '4 أسابيع (60 ساعة تدريبية)',
+    graduationYear: '2023',
+    completionDate: '2023-11-20',
+    certificateNumber: 'WHO-BB-2023-991',
+    notes: 'دورة تدريبية تخصصية معتمدة',
+    createdBy: 'admin1',
+    createdAt: '2026-01-10 10:30'
+  },
+  {
+    id: 'QUAL-2026-003',
+    employeeId: 1002,
+    employeeName: 'م. أمل مفتاح الصابر العبيدي',
+    fileNumber: '1002/م',
+    recordType: 'مؤهل علمي',
+    title: 'بكالوريوس تقنية مختبرات طبية',
+    specialization: 'فحوصات الدم والمناعة والمختبرات',
+    issuingAuthority: 'جامعة بنغازي - كلية التقنية الطبية',
+    universityOrInstitute: 'جامعة بنغازي',
+    educationType: 'جامعة عامة',
+    graduationYear: '2013',
+    completionDate: '2013-07-15',
+    certificateNumber: 'LAB-BSC-4091',
+    notes: 'تقدير ممتاز مع مرتبة الشرف',
+    createdBy: 'admin1',
+    createdAt: '2026-01-12 11:00'
   }
 ];
 
@@ -554,6 +914,54 @@ export const INITIAL_LOGS: AuditLog[] = [
   }
 ];
 
+export const DEMO_BULK_OPERATIONS: BulkOperationRecord[] = [
+  {
+    id: 'BULK-INC-2026-01',
+    operationCode: 'INC-BULK-2026-01-142',
+    actionType: 'ANNUAL_INCREMENT_DISBURSE',
+    actionName: 'صرف العلاوة السنوية الدورية لشهر 01/2026',
+    executionDate: '2026-01-15',
+    executionTime: '11:20:00',
+    executedAt: '2026-01-15T11:20:00Z',
+    executedBy: 'المدير الإداري',
+    affectedCount: 2,
+    affectedEmployeeIds: [1001, 1002],
+    status: 'SUCCESS',
+    backupFileName: 'AutoBackup_Before_BulkInc_2026-01-15_142.zip',
+    backupChecksum: 'CRC32-A9F1B2C3',
+    isReversible: true,
+    isUndone: false,
+    preOperationSnapshot: [
+      {
+        id: 1001,
+        fullName: 'أحمد خليفة سالم العبيدي',
+        jobNumber: '1001/م',
+        jobGrade: 'الدرجة التاسعة',
+        gradeEntryDate: '2021-01-01',
+        currentIncrement: 3,
+        lastIncrementDate: '2024-01-01'
+      },
+      {
+        id: 1002,
+        fullName: 'أمل فرج مسعود البرعصي',
+        jobNumber: '1002/م',
+        jobGrade: 'الدرجة الثامنة',
+        gradeEntryDate: '2022-01-01',
+        currentIncrement: 2,
+        lastIncrementDate: '2024-01-01'
+      }
+    ],
+    details: {
+      targetMonth: '01/2026',
+      effectiveDate: '2026-01-15',
+      calculationMethod: 'Anniversary Date',
+      eligibleCount: 2,
+      disbursedCount: 2
+    },
+    notes: 'تمت العملية بعد التحقق بكلمة المرور وحفظ نسخة احتياطية كاملة'
+  }
+];
+
 export function generateLargeDataset(count: number = 100): Employee[] {
   const result: Employee[] = [...INITIAL_EMPLOYEES];
   const firstNames = ['محمد', 'علي', 'أحمد', 'عبدالله', 'سالم', 'محمود', 'مصطفى', 'عمر', 'إبراهيم', 'فاطمة', 'عائشة', 'زينب', 'مريم', 'سارة', 'أسماء'];
@@ -580,7 +988,10 @@ export function generateLargeDataset(count: number = 100): Employee[] {
     const emp: Employee = {
       id: 1000 + i,
       jobNumber: `${1000 + i}/م`,
+      nationality: 'ليبي',
+      documentType: 'الرقم الوطني',
       nationalId: `${isFemale ? '2' : '1'}${birthYear}${String(i).padStart(7, '0')}`,
+      passportNumber: '',
       fullName: `${fn} ${mn} ${sn} ${ln}`,
       motherName: `مريم ${fatherNames[(i + 2) % fatherNames.length]}`,
       birthDate: `${birthYear}-0${(i % 9) + 1}-15`,

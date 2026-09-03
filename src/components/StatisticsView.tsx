@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Employee } from '../types';
-import { BarChart3, Users, Award, Briefcase, Building2, Calendar } from 'lucide-react';
+import { BarChart3, Users, Award, Briefcase, Building2, Calendar, UserCheck, UserX, ArrowLeftRight } from 'lucide-react';
+import { isEmployeeActiveInCadre, isOutsideCadreStatus } from '../utils/hrCalculations';
 import { 
   BarChart, 
   Bar, 
@@ -22,6 +23,8 @@ const PALETTE = ['#8B0000', '#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171
 export const StatisticsView: React.FC<StatisticsViewProps> = ({ employees }) => {
   // Statistics Computations
   const totalCount = employees.length;
+  const activeInCadreCount = employees.filter((e) => isEmployeeActiveInCadre(e)).length;
+  const outsideCadreCount = employees.filter((e) => isOutsideCadreStatus(e.status)).length;
   const maleCount = employees.filter((e) => e.gender === 'ذكر').length;
   const femaleCount = employees.filter((e) => e.gender === 'أنثى').length;
 
@@ -100,6 +103,45 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ employees }) => 
         </div>
         <div className="text-xs font-mono font-bold text-red-300 bg-red-950 px-3 py-1.5 rounded-xl border border-red-800">
           إجمالي الكادر: {totalCount.toLocaleString('ar-LY')}
+        </div>
+      </div>
+
+      {/* Quick Cadre Metrics Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">داخل الملاك النشط</span>
+            <UserCheck className="w-4 h-4 text-emerald-400" />
+          </div>
+          <p className="text-xl font-black text-emerald-400 mt-1">{activeInCadreCount}</p>
+          <span className="text-[10px] text-slate-500">على رأس العمل / إجازات / انتداب</span>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">خارج الملاك الوظيفي</span>
+            <UserX className="w-4 h-4 text-amber-400" />
+          </div>
+          <p className="text-xl font-black text-amber-400 mt-1">{outsideCadreCount}</p>
+          <span className="text-[10px] text-slate-500">نقل خارجي / استقالة / إنهاء خدمة</span>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">ذكور</span>
+            <Users className="w-4 h-4 text-sky-400" />
+          </div>
+          <p className="text-xl font-black text-sky-400 mt-1">{maleCount}</p>
+          <span className="text-[10px] text-slate-500">{totalCount > 0 ? ((maleCount / totalCount) * 100).toFixed(1) : 0}% من الإجمالي</span>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">إناث</span>
+            <Users className="w-4 h-4 text-pink-400" />
+          </div>
+          <p className="text-xl font-black text-pink-400 mt-1">{femaleCount}</p>
+          <span className="text-[10px] text-slate-500">{totalCount > 0 ? ((femaleCount / totalCount) * 100).toFixed(1) : 0}% من الإجمالي</span>
         </div>
       </div>
 

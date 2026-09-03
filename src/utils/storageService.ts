@@ -1,4 +1,6 @@
 import { FullAppDatabase, ElectronStorageAPI } from './storageTypes';
+import { Employee } from '../types';
+import { DEFAULT_PROMOTION_RULES } from './promotionEngine';
 import {
   INITIAL_EMPLOYEES,
   INITIAL_USERS,
@@ -15,10 +17,68 @@ import {
   INITIAL_GENERAL_PROCEDURES,
   INITIAL_ORG_UNITS,
   INITIAL_JOB_TITLES,
-  DEFAULT_HR_RULES
+  DEFAULT_HR_RULES,
+  INITIAL_BULK_OPERATIONS,
+  INITIAL_ANNUAL_EVALUATIONS
 } from '../data/initialData';
 
 const STORAGE_KEY = 'blood_bank_hr_database_v1';
+
+/**
+ * Ensures legacy records without nationality or documentType are safely migrated
+ * without data loss, marking records needing verification for review.
+ */
+export function migrateEmployeeRecord(emp: any): Employee {
+  const hasNationality = typeof emp.nationality === 'string' && emp.nationality.trim().length > 0;
+  const is12DigitNationalId = typeof emp.nationalId === 'string' && /^[0-9]{12}$/.test(emp.nationalId.trim());
+  
+  let nationality = emp.nationality;
+  let documentType = emp.documentType;
+  let needsNationalityReview = emp.needsNationalityReview ?? false;
+  let passportNumber = emp.passportNumber || '';
+  let nationalId = emp.nationalId || '';
+
+  if (!hasNationality) {
+    if (is12DigitNationalId) {
+      nationality = 'ليبي';
+      documentType = 'الرقم الوطني';
+      needsNationalityReview = false;
+    } else {
+      // Legacy record with missing nationality and non-standard national ID -> mark for review
+      nationality = 'غير محدد';
+      documentType = passportNumber ? 'رقم جواز السفر' : 'الرقم الوطني';
+      needsNationalityReview = true;
+    }
+  } else {
+    if (!documentType) {
+      documentType = nationality === 'ليبي' ? 'الرقم الوطني' : 'رقم جواز السفر';
+    }
+  }
+
+  return {
+    ...emp,
+    nationality: nationality || 'غير محدد',
+    documentType: documentType || (nationality === 'ليبي' ? 'الرقم الوطني' : 'رقم جواز السفر'),
+    nationalId,
+    passportNumber,
+    needsNationalityReview
+  };
+}
+
+export function sanitizeDatabase(raw: Partial<FullAppDatabase>): FullAppDatabase {
+  const base = getDefaultDatabase();
+  const sanitizedEmployees = Array.isArray(raw.employees)
+    ? raw.employees.map(migrateEmployeeRecord)
+    : base.employees;
+
+  return {
+    ...base,
+    ...raw,
+    employees: sanitizedEmployees,
+    annualEvaluations: Array.isArray(raw.annualEvaluations) ? raw.annualEvaluations : base.annualEvaluations,
+    promotionRules: Array.isArray(raw.promotionRules) && raw.promotionRules.length > 0 ? raw.promotionRules : base.promotionRules
+  };
+}
 
 export function getDefaultDatabase(): FullAppDatabase {
   return {
@@ -39,7 +99,10 @@ export function getDefaultDatabase(): FullAppDatabase {
     generalProcedures: INITIAL_GENERAL_PROCEDURES,
     orgUnits: INITIAL_ORG_UNITS,
     jobTitles: INITIAL_JOB_TITLES,
-    hrRules: DEFAULT_HR_RULES
+    hrRules: DEFAULT_HR_RULES,
+    promotionRules: DEFAULT_PROMOTION_RULES,
+    bulkOperations: INITIAL_BULK_OPERATIONS,
+    annualEvaluations: INITIAL_ANNUAL_EVALUATIONS
   };
 }
 
@@ -54,7 +117,7 @@ export async function loadAppDatabase(): Promise<{ data: FullAppDatabase; isFirs
     try {
       const res = await window.electronAPI.loadData();
       if (res.success && res.data) {
-        return { data: res.data, isFirstRun: !!res.isFirstRun, corrupted: !!res.corrupted, source: 'electron' };
+        return { data: sanitizeDatabase(res.data), isFirstRun: !!res.isFirstRun, corrupted: !!res.corrupted, source: 'electron' };
       } else if (res.corrupted) {
         return { data: getDefaultDatabase(), isFirstRun: false, corrupted: true, source: 'electron' };
       }
@@ -70,7 +133,7 @@ export async function loadAppDatabase(): Promise<{ data: FullAppDatabase; isFirs
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && Array.isArray(parsed.employees)) {
-          return { data: { ...getDefaultDatabase(), ...parsed }, isFirstRun: false, source: 'localStorage' };
+          return { data: sanitizeDatabase(parsed), isFirstRun: false, source: 'localStorage' };
         }
       }
       // First run in browser: seed localStorage with defaults
@@ -129,55 +192,36 @@ export async function saveAppDatabase(data: FullAppDatabase): Promise<{ success:
  * In browser, triggers a direct JSON download.
  */
 export async function exportManualBackup(data: FullAppDatabase): Promise<{ success: boolean; message: string }> {
-  console.log('[DEBUG 2] exportManualBackup called. Data type:', typeof data, data ? `keys: ${Object.keys(data).join(', ')}` : 'null');
-  
   let cleanData: FullAppDatabase;
   try {
     const rawJson = JSON.stringify(data);
-    console.log('[DEBUG 2] Data JSON stringified successfully. Total size in chars:', rawJson.length);
     cleanData = JSON.parse(rawJson);
-  } catch (serializationErr: any) {
-    console.error('[DEBUG 2 ERROR] Failed to JSON stringify/parse data before export:', serializationErr);
+  } catch (serializationErr) {
     cleanData = data;
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const fileName = `BloodBank_HR_Backup_${timestamp}.json`;
 
-  console.log('[DEBUG 3] Checking window and Electron API availability:', {
-    typeofWindow: typeof window,
-    windowHasElectronAPI: typeof window !== 'undefined' ? ('electronAPI' in window) : false,
-    typeofElectronAPI: typeof (window as any)?.electronAPI,
-    typeofExportBackup: typeof (window as any)?.electronAPI?.exportBackup,
-    electronAPIKeys: (window as any)?.electronAPI ? Object.keys((window as any).electronAPI) : []
-  });
-
   // Path 1: Electron Environment
   if (typeof window !== 'undefined' && window.electronAPI?.exportBackup) {
     try {
-      console.log('[DEBUG 4] Calling window.electronAPI.exportBackup right now with params:', { fileName, cleanDataSize: JSON.stringify(cleanData).length });
       const res = await window.electronAPI.exportBackup(fileName, cleanData);
-      console.log('[DEBUG 4] window.electronAPI.exportBackup RESOLVED with result:', res);
 
       if (res && res.success && res.filePath) {
         return { success: true, message: `تم حفظ النسخة الاحتياطية بنجاح في: ${res.filePath}` };
       } else if (res && res.canceled) {
-        console.log('[DEBUG 4] Save dialog was canceled by the user.');
         return { success: false, message: 'تم إلغاء عملية حفظ النسخة الاحتياطية.' };
       } else {
-        const errMsg = (res && res.error) ? res.error : (res ? 'لم يتم تحديد مسار الحفظ أو حدث خطأ أثناء الكتابة' : 'استجابة فارغة (undefined) من معالج سطح المكتب');
-        console.error('[DEBUG 4 FAIL] Electron export returned failure response:', res);
+        const errMsg = (res && res.error) ? res.error : (res ? 'لم يتم تحديد مسار الحفظ أو حدث خطأ أثناء الكتابة' : 'استجابة غير معرّفة من معالج سطح المكتب');
         return { success: false, message: `فشل تصدير النسخة الاحتياطية: ${errMsg}` };
       }
     } catch (err: any) {
-      console.error('[DEBUG 4 CATCH] window.electronAPI.exportBackup threw/rejected error in catch block:', err);
-      console.error('[DEBUG 4 CATCH details] Error name:', err?.name, 'message:', err?.message, 'stack:', err?.stack, 'full err:', err);
       return { success: false, message: `حدث خطأ أثناء تصدير النسخة الاحتياطية: ${err?.message || String(err)}` };
     }
   }
 
-  // Path 2: Browser download fallback (ONLY when window.electronAPI is not present)
-  console.log('[DEBUG Fallback] window.electronAPI.exportBackup not available. Executing browser download fallback...');
+  // Path 2: Browser download fallback (when window.electronAPI is not present)
   try {
     const jsonStr = JSON.stringify(cleanData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -189,10 +233,8 @@ export async function exportManualBackup(data: FullAppDatabase): Promise<{ succe
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log('[DEBUG Fallback] Browser fallback download triggered successfully for:', fileName);
     return { success: true, message: `تم تحميل ملف النسخة الاحتياطية (${fileName}) بنجاح.` };
   } catch (err: any) {
-    console.error('[DEBUG Fallback ERROR] Browser fallback failed:', err);
     return { success: false, message: `فشل إنشاء النسخة الاحتياطية: ${err?.message || String(err)}` };
   }
 }

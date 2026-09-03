@@ -8,8 +8,10 @@ import {
   TransferRecord, 
   DisciplinaryRecord, 
   ResignationRecord, 
-  StatusSettlementRecord 
+  StatusSettlementRecord,
+  CareerPromotionRecord
 } from '../types';
+import { formatDateDisplay } from '../utils/dateUtils';
 import { 
   History, 
   Calendar, 
@@ -21,12 +23,15 @@ import {
   UserX, 
   SlidersHorizontal,
   FileText,
-  Building
+  Building,
+  Building2,
+  Printer
 } from 'lucide-react';
+import { EmployeeCareerReportModal } from './EmployeeCareerReportModal';
 
 interface TimelineEvent {
   id: string;
-  type: 'تعيين' | 'مباشرة' | 'ترقية' | 'علاوة' | 'تسوية' | 'ندب' | 'نقل' | 'إجازة' | 'جزاء' | 'استقالة';
+  type: 'تعيين' | 'مباشرة' | 'ترقية' | 'علاوة' | 'تسوية' | 'ندب' | 'ندب على درجة' | 'نقل' | 'إجازة' | 'جزاء' | 'استقالة';
   date: string;
   title: string;
   details: string;
@@ -44,6 +49,7 @@ interface EmployeeHistoryViewProps {
   disciplinary: DisciplinaryRecord[];
   resignations: ResignationRecord[];
   settlements: StatusSettlementRecord[];
+  careerRecords?: CareerPromotionRecord[];
 }
 
 export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
@@ -55,10 +61,12 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
   transfers,
   disciplinary,
   resignations,
-  settlements
+  settlements,
+  careerRecords = []
 }) => {
   const [selectedEmpId, setSelectedEmpId] = useState<number>(employees[0]?.id || 1001);
   const [filterType, setFilterType] = useState<string>('all');
+  const [isCareerReportOpen, setIsCareerReportOpen] = useState(false);
 
   const selectedEmp = employees.find((e) => e.id === selectedEmpId) || employees[0];
 
@@ -94,7 +102,24 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
     }
 
-    // 3. Promotions
+    // 3. Secondment to Grade (ندب على درجة) and custom career records
+    careerRecords
+      .filter((c) => c.employeeId === selectedEmp.id)
+      .forEach((c) => {
+        if (c.actionType === 'ندب على درجة') {
+          events.push({
+            id: c.id,
+            type: 'ندب على درجة',
+            date: c.actionDate || c.decisionDate,
+            title: `ندب على درجة: ${c.newGrade} (علاوة ${c.newIncrement})`,
+            details: `الجهة المصدرة: ${c.issuingAuthority || 'وزارة الصحة'} | القرار: ${c.decisionNumber} | ${c.notes || ''}`,
+            badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+            icon: <Building2 className="w-4 h-4 text-emerald-700" />
+          });
+        }
+      });
+
+    // 4. Promotions
     promotions
       .filter((p) => p.employeeId === selectedEmp.id)
       .forEach((p) => {
@@ -109,7 +134,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 4. Increments
+    // 5. Increments
     increments
       .filter((i) => i.employeeId === selectedEmp.id)
       .forEach((i) => {
@@ -124,7 +149,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 5. Settlements
+    // 6. Settlements
     settlements
       .filter((s) => s.employeeId === selectedEmp.id)
       .forEach((s) => {
@@ -139,7 +164,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 6. Secondments
+    // 7. Secondments
     secondments
       .filter((sec) => sec.employeeId === selectedEmp.id)
       .forEach((sec) => {
@@ -154,7 +179,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 7. Transfers
+    // 8. Transfers
     transfers
       .filter((t) => t.employeeId === selectedEmp.id)
       .forEach((t) => {
@@ -169,7 +194,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 8. Leaves
+    // 9. Leaves
     leaves
       .filter((l) => l.employeeId === selectedEmp.id)
       .forEach((l) => {
@@ -184,7 +209,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 9. Disciplinary
+    // 10. Disciplinary
     disciplinary
       .filter((d) => d.employeeId === selectedEmp.id)
       .forEach((d) => {
@@ -199,160 +224,181 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
         });
       });
 
-    // 10. Resignation
+    // 11. Resignations / End of Service
     resignations
       .filter((r) => r.employeeId === selectedEmp.id)
       .forEach((r) => {
         events.push({
           id: r.id,
           type: 'استقالة',
-          date: r.resignationDate,
-          title: `إنهاء خدمة: ${r.finalStatus}`,
-          details: `القرار: ${r.decisionNumber} | السبب: ${r.reason}`,
-          badgeColor: 'bg-slate-200 text-slate-900 border-slate-300',
-          icon: <UserX className="w-4 h-4 text-slate-800" />
+          date: r.effectiveDate || r.decisionDate,
+          title: `إنهاء خدمة (${r.finalStatus || 'مستقيل'})`,
+          details: `السبب: ${r.reason || 'بناء على طلبه'} | القرار: ${r.decisionNumber}`,
+          badgeColor: 'bg-gray-200 text-gray-800 border-gray-300',
+          icon: <UserX className="w-4 h-4 text-gray-700" />
         });
       });
 
-    // Sort descending by date
+    // Sort chronologically (Newest first)
     return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [selectedEmp, leaves, promotions, increments, secondments, transfers, disciplinary, resignations, settlements]);
+  }, [selectedEmp, leaves, promotions, increments, secondments, transfers, disciplinary, resignations, settlements, careerRecords]);
 
-  const filteredEvents = timelineEvents.filter((ev) => filterType === 'all' || ev.type === filterType);
+  // Filter events
+  const filteredEvents = useMemo(() => {
+    if (filterType === 'all') return timelineEvents;
+    return timelineEvents.filter((e) => e.type === filterType);
+  }, [timelineEvents, filterType]);
 
   return (
     <div className="space-y-6">
-      
-      {/* Top Banner */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Top Header Card */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-red-700 font-bold text-xs mb-1">
             <History className="w-4 h-4" />
-            <span>السجل التاريخي الشامل للموظف (Unified Career History)</span>
+            <span>السجل التاريخي والمسار المهني</span>
           </div>
-          <h2 className="text-xl font-black text-slate-900">سجل الأحداث والحركات الوظيفية المتسلسلة</h2>
-          <p className="text-xs text-slate-500 mt-1">
-            عرض تسلسلي لجميع القرارات، الترقيات، العلاوات، الندب، النقل، الإجازات، والجزاءات منذ المباشرة
+          <h1 className="text-xl font-extrabold text-gray-900">سجل التاريخ الوظيفي والأحداث الشاملة</h1>
+          <p className="text-xs text-gray-600 mt-1">
+            عرض تسلسلي زمني دقيق لكافة الإجراءات والترقيات والعلاوات والندب على الدرجة والإجازات
           </p>
         </div>
 
-        {/* Employee Picker */}
-        <div className="w-full md:w-80">
-          <label className="block text-[11px] font-bold text-slate-500 mb-1">اختر الموظف لعرض السجل:</label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCareerReportOpen(true)}
+            className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm cursor-pointer transition"
+          >
+            <Printer className="w-4 h-4 text-amber-300" />
+            <span>طباعة سجل الترقيات للموظف</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Employee Selector Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div className="md:col-span-2">
+          <label className="block font-bold text-gray-700 mb-1">اختر الموظف لعرض سجله التاريخي:</label>
           <select
             value={selectedEmpId}
             onChange={(e) => setSelectedEmpId(Number(e.target.value))}
-            className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 shadow-sm"
+            className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold text-gray-900 text-xs focus:ring-2 focus:ring-red-600"
           >
             {employees.map((e) => (
               <option key={e.id} value={e.id}>
-                {e.fullName} ({e.jobNumber} - {e.department})
+                {e.fullName} ({e.jobNumber}) — {e.jobGrade} — {e.department}
               </option>
             ))}
           </select>
         </div>
+
+        <div>
+          <label className="block font-bold text-gray-700 mb-1">تصفية نوع الحدث:</label>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold text-gray-900 text-xs"
+          >
+            <option value="all">كافة الأحداث ({timelineEvents.length})</option>
+            <option value="ندب على درجة">ندب على درجة</option>
+            <option value="ترقية">ترقيات</option>
+            <option value="علاوة">علاوات سنوية</option>
+            <option value="تسوية">تسويات وضع</option>
+            <option value="ندب">ندب وتكليف</option>
+            <option value="نقل">حركات نقل</option>
+            <option value="إجازة">إجازات</option>
+            <option value="جزاء">إجراءات إدارية وجزاءات</option>
+            <option value="استقالة">إنهاء خدمة</option>
+          </select>
+        </div>
       </div>
 
-      {/* Selected Employee Bio Card */}
+      {/* Selected Employee Summary Banner */}
       {selectedEmp && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
-          <div>
-            <span className="text-slate-400 block mb-0.5">الاسم الرباعي</span>
-            <span className="font-black text-slate-900 text-sm">{selectedEmp.fullName}</span>
+        <div className="bg-gradient-to-l from-slate-900 via-slate-800 to-red-900 text-white p-5 rounded-2xl shadow-md flex flex-wrap justify-between items-center gap-4 text-xs">
+          <div className="space-y-1">
+            <span className="text-amber-300 text-[11px] font-bold">الملف الوظيفي المختار</span>
+            <h2 className="text-lg font-black">{selectedEmp.fullName}</h2>
+            <div className="flex flex-wrap items-center gap-3 text-slate-300 text-[11px]">
+              <span>الرقم الوظيفي: <strong className="text-white font-mono">{selectedEmp.jobNumber}</strong></span>
+              <span>•</span>
+              <span>القسم: <strong className="text-white">{selectedEmp.department}</strong></span>
+              <span>•</span>
+              <span>المسمى: <strong className="text-white">{selectedEmp.jobTitle}</strong></span>
+            </div>
           </div>
 
-          <div>
-            <span className="text-slate-400 block mb-0.5">الرقم الوظيفي / الملاك</span>
-            <span className="font-mono font-bold text-slate-800">{selectedEmp.jobNumber}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-0.5">الدرجة الحالية</span>
-            <span className="font-bold text-red-700">{selectedEmp.jobGrade}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-0.5">تاريخ المباشرة</span>
-            <span className="font-mono text-slate-800">{selectedEmp.directingDate || selectedEmp.hireDate}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-0.5">الحالة الوظيفية</span>
-            <span className="font-bold text-emerald-700">{selectedEmp.status}</span>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 px-4 py-2 rounded-xl text-center border border-white/10">
+              <span className="text-[10px] text-slate-300 block">الدرجة الحالية</span>
+              <strong className="text-sm font-bold text-amber-300">{selectedEmp.jobGrade}</strong>
+            </div>
+            <div className="bg-white/10 px-4 py-2 rounded-xl text-center border border-white/10">
+              <span className="text-[10px] text-slate-300 block">العلاوات</span>
+              <strong className="text-sm font-bold text-emerald-300">+{selectedEmp.currentIncrement || 1}</strong>
+            </div>
+            <div className="bg-white/10 px-4 py-2 rounded-xl text-center border border-white/10">
+              <span className="text-[10px] text-slate-300 block">تاريخ المباشرة</span>
+              <strong className="text-xs font-mono text-white">{formatDateDisplay(selectedEmp.directingDate || selectedEmp.hireDate)}</strong>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <span className="text-xs font-bold text-slate-500 flex items-center gap-1 ml-2">
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>تصفية الأحداث:</span>
-        </span>
-
-        {[
-          { key: 'all', label: 'كل الأحداث' },
-          { key: 'ترقية', label: 'الترقيات' },
-          { key: 'علاوة', label: 'العلاوات' },
-          { key: 'إجازة', label: 'الإجازات' },
-          { key: 'ندب', label: 'الندب' },
-          { key: 'نقل', label: 'النقل' },
-          { key: 'جزاء', label: 'الجزاءات' }
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setFilterType(t.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterType === t.key
-                ? 'bg-red-700 text-white shadow-sm'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Timeline Tree */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+      {/* Chronological Timeline Container */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
         {filteredEvents.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-xs">
-            لا توجد أحداث مسجلة مطابقة لتصفية هذا الموظف
+          <div className="p-12 text-center text-gray-500 text-xs">
+            لا توجد أحداث مسجلة لهذا الموظف وفق الفلترة المختارة.
           </div>
         ) : (
-          <div className="relative border-r-2 border-slate-200 mr-4 space-y-6 pr-6">
-            {filteredEvents.map((ev) => (
-              <div key={ev.id} className="relative group">
-                
-                {/* Timeline Dot Icon */}
-                <div className="absolute -right-[35px] top-1.5 w-8 h-8 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center shadow-sm group-hover:border-red-600 transition-colors">
-                  {ev.icon}
+          <div className="relative border-r-2 border-red-200 mr-4 space-y-6">
+            {filteredEvents.map((evt) => (
+              <div key={evt.id} className="relative pr-6 group">
+                {/* Dot / Icon on line */}
+                <div className="absolute -right-3 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-red-600 flex items-center justify-center shadow-xs">
+                  <div className="w-2 h-2 rounded-full bg-red-600"></div>
                 </div>
 
-                {/* Event Card */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition-all hover:bg-white hover:shadow-md">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                {/* Content Box */}
+                <div className="bg-gray-50 hover:bg-red-50/30 transition-colors p-4 rounded-xl border border-gray-200 space-y-2">
+                  <div className="flex flex-wrap justify-between items-center gap-2">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${ev.badgeColor}`}>
-                        {ev.type}
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${evt.badgeColor}`}>
+                        {evt.icon}
+                        <span>{evt.type}</span>
                       </span>
-                      <h4 className="text-xs font-black text-slate-900">{ev.title}</h4>
+                      <h3 className="text-xs font-black text-gray-900">{evt.title}</h3>
                     </div>
 
-                    <span className="font-mono text-[11px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">
-                      {ev.date}
-                    </span>
+                    <div className="flex items-center gap-1 text-[11px] font-mono text-gray-500 bg-white px-2 py-0.5 rounded border">
+                      <Calendar className="w-3 h-3 text-red-600" />
+                      <span>{formatDateDisplay(evt.date)}</span>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-slate-600 font-medium">{ev.details}</p>
+                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                    {evt.details}
+                  </p>
                 </div>
-
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* Printable Modal */}
+      {selectedEmp && (
+        <EmployeeCareerReportModal
+          isOpen={isCareerReportOpen}
+          onClose={() => setIsCareerReportOpen(false)}
+          employee={selectedEmp}
+          careerRecords={careerRecords}
+          promotions={promotions}
+          increments={increments}
+          settlements={settlements}
+        />
+      )}
     </div>
   );
 };

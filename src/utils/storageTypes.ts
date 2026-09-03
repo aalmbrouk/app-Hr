@@ -14,7 +14,13 @@ import {
   GeneralProcedure,
   OrganizationalUnit,
   JobTitle,
-  HrRule
+  HrRule,
+  PromotionRule,
+  BulkOperationRecord,
+  CareerPromotionRecord,
+  EmployeeQualificationRecord,
+  AnnualPerformanceEvaluation,
+  UnlinkedHistoricalCareerRecord
 } from '../types';
 
 export interface FullAppDatabase {
@@ -36,6 +42,12 @@ export interface FullAppDatabase {
   orgUnits: OrganizationalUnit[];
   jobTitles: JobTitle[];
   hrRules: HrRule[];
+  promotionRules?: PromotionRule[];
+  bulkOperations?: BulkOperationRecord[];
+  careerRecords?: CareerPromotionRecord[];
+  qualifications?: EmployeeQualificationRecord[];
+  annualEvaluations?: AnnualPerformanceEvaluation[];
+  unlinkedHistoricalRecords?: UnlinkedHistoricalCareerRecord[];
 }
 
 export interface ElectronStorageAPI {

@@ -111,8 +111,8 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-800/60">
+                filteredLogs.map((log, idx) => (
+                  <tr key={`${log.id}-${log.timestamp}-${idx}`} className="hover:bg-slate-800/60">
                     <td className="p-3 font-mono text-red-400 font-bold">{log.id}</td>
                     <td className="p-3 font-mono text-slate-400 dir-ltr">{log.timestamp}</td>
                     <td className="p-3 font-bold text-white">{log.user}</td>

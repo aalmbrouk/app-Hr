@@ -101,50 +101,33 @@ export function setupStorageIPC(electronModule?: any, fsModule?: any, pathModule
 
   // 3. IPC Handler: exportBackup (Native Save Dialog & Direct In-Memory JSON Write)
   ipcMain.handle('storage:exportBackup', async (_event: any, defaultFileName = 'BloodBank_HR_Backup.json', dataPayload?: any) => {
-    console.log('[DEBUG 5 MainProcess] storage:exportBackup handler ENTERED.', {
-      defaultFileName,
-      hasPayload: !!dataPayload,
-      payloadType: typeof dataPayload,
-      payloadKeys: dataPayload ? Object.keys(dataPayload) : [],
-      payloadSizeChars: dataPayload ? JSON.stringify(dataPayload).length : 0
-    });
-
     try {
-      console.log('[DEBUG 5 MainProcess] Calling dialog.showSaveDialog with title and filters...');
       const { canceled, filePath } = await dialog.showSaveDialog({
         title: 'تصدير نسخة احتياطية من قاعدة بيانات الموارد البشرية',
         defaultPath: defaultFileName,
         filters: [{ name: 'JSON Backup', extensions: ['json'] }]
       });
 
-      console.log('[DEBUG 5 MainProcess] dialog.showSaveDialog completed. Result:', { canceled, filePath });
-
       if (canceled || !filePath) {
-        console.log('[DEBUG 5 MainProcess] Export canceled or no filePath chosen.');
         return { success: false, canceled: true };
       }
 
-      // If renderer passed in-memory data payload, write it directly (Fix A)
+      // If renderer passed in-memory data payload, write it directly
       if (dataPayload) {
-        console.log('[DEBUG 5 MainProcess] Serializing in-memory payload and calling fs.writeFileSync to:', filePath);
         const jsonString = JSON.stringify(dataPayload, null, 2);
         fs.writeFileSync(filePath, jsonString, 'utf8');
-        console.log('[DEBUG 5 MainProcess] fs.writeFileSync successful! File bytes written:', Buffer.byteLength(jsonString, 'utf8'));
         return { success: true, filePath };
       }
 
       // Fallback: Copy data file from disk if no in-memory payload provided
-      console.log('[DEBUG 5 MainProcess] No in-memory payload provided, checking if original dataFilePath exists:', dataFilePath);
       if (fs.existsSync(dataFilePath)) {
-        console.log('[DEBUG 5 MainProcess] Copying existing disk file from', dataFilePath, 'to', filePath);
         fs.copyFileSync(dataFilePath, filePath);
         return { success: true, filePath };
       } else {
-        console.error('[DEBUG 5 MainProcess ERROR] dataFilePath does not exist on disk and no payload provided.');
         return { success: false, error: 'لم يتم العثور على ملف البيانات الأصلي لنسخه ولم يتم تزويد بيانات في الذاكرة' };
       }
     } catch (err: any) {
-      console.error('[DEBUG 5 MainProcess CATCH] Error in exportBackup:', err);
+      console.error('[Storage IPC] Error in exportBackup:', err);
       return { success: false, error: err?.message || String(err) };
     }
   });

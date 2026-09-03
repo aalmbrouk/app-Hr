@@ -191,12 +191,17 @@ export const SearchQueryView: React.FC<SearchQueryViewProps> = ({
             <select
               value={statusQuery}
               onChange={(e) => setStatusQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-gray-900 focus:outline-none focus:border-red-600"
+              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-gray-900 focus:outline-none focus:border-red-600 font-bold"
             >
-              <option value="الكل">جميع الحالات</option>
-              <option value="على رأس العمل">على رأس العمل</option>
-              <option value="إجازة سنوية">إجازة سنوية</option>
-              <option value="مستقيل">مستقيل</option>
+              <option value="الكل">جميع الحالات الوظيفية</option>
+              <option value="على رأس العمل">على رأس العمل (نشط)</option>
+              <option value="إجازة">في إجازة</option>
+              <option value="منتدب">منتدب</option>
+              <option value="منقول خارجياً">منقول خارجياً (خارج الملاك)</option>
+              <option value="مستقيل">مستقيل (خارج الملاك)</option>
+              <option value="منهي خدماته">منهي خدماته (خارج الملاك)</option>
+              <option value="متقاعد">متقاعد (خارج الملاك)</option>
+              <option value="متوفى">متوفى (خارج الملاك)</option>
             </select>
           </div>
 
