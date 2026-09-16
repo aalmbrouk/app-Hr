@@ -13,7 +13,8 @@ import {
   isGeneralNumericalGrade, 
   getGeneralNumericalRank,
   normalizeCareerActionType,
-  getEmployeeCareerHistory
+  getEmployeeCareerHistory,
+  calculateEmployeeCareerSummary
 } from './careerUtils';
 
 export interface GradeRecalculationResult {
@@ -158,16 +159,33 @@ export function normalizeGeneralGradeName(grade?: string): string {
  * Retrieves all career records, sorts chronologically, filters out non-grade changes,
  * and extracts the true latest effective General Grade.
  */
+export interface GradeCalculationContext {
+  careerRecords?: CareerPromotionRecord[];
+  promotions?: PromotionRecord[];
+  increments?: IncrementRecord[];
+  settlements?: StatusSettlementRecord[];
+  generalProcedures?: (GeneralProcedureRecord | GeneralProcedure)[];
+  employees?: Employee[];
+  asOfYear?: number;
+  cutoffDate?: string;
+}
+
+export interface HistoricalGradeResult {
+  effectiveGrade: string;
+  effectiveGradeDate: string;
+  decisionNumber: string;
+  movementType: string;
+  isUnderReview: boolean;
+}
+
+/**
+ * Enhanced Single Source of Truth Engine:
+ * Returns the latest valid effective Grade Information from chronological career history.
+ * Supports historical cutoff dates / evaluation years for accurate historical reports.
+ */
 export function getLatestEffectiveGradeInfo(
   target: Employee | number | string,
-  context?: {
-    careerRecords?: CareerPromotionRecord[];
-    promotions?: PromotionRecord[];
-    increments?: IncrementRecord[];
-    settlements?: StatusSettlementRecord[];
-    generalProcedures?: (GeneralProcedureRecord | GeneralProcedure)[];
-    employees?: Employee[];
-  }
+  context?: GradeCalculationContext
 ): LatestEffectiveGradeInfo {
   // Resolve employee object
   let employee: Employee;
@@ -198,12 +216,14 @@ export function getLatestEffectiveGradeInfo(
   const empId = employee.id;
   const fileNum = (employee.jobNumber || '').trim();
 
+  const cutoffLimit = context?.cutoffDate || (context?.asOfYear ? `${context.asOfYear}-12-31` : undefined);
+
   // Records sources
-  const careerRecords = context?.careerRecords || activeDatabaseContext.careerRecords;
-  const promotions = context?.promotions || activeDatabaseContext.promotions;
-  const increments = context?.increments || activeDatabaseContext.increments;
-  const settlements = context?.settlements || activeDatabaseContext.settlements;
-  const generalProcedures = context?.generalProcedures || activeDatabaseContext.generalProcedures;
+  const careerRecords = (context?.careerRecords || activeDatabaseContext.careerRecords) || [];
+  const promotions = (context?.promotions || activeDatabaseContext.promotions) || [];
+  const increments = (context?.increments || activeDatabaseContext.increments) || [];
+  const settlements = (context?.settlements || activeDatabaseContext.settlements) || [];
+  const generalProcedures = (context?.generalProcedures || activeDatabaseContext.generalProcedures) || [];
 
   const auditTrail: string[] = [];
 
@@ -226,12 +246,13 @@ export function getLatestEffectiveGradeInfo(
 
   const events: ChronoEvent[] = [];
 
-  // 1. Initial Appointment Baseline
+  // 1. Initial Appointment Baseline (only if hired on or before cutoffLimit)
   const hireDate = employee.hireDate || employee.directingDate || '';
-  const initialAppGrade = (employee.appointmentGrade || employee.jobGrade || 'الدرجة السابعة').trim();
+  const initialAppGrade = (employee.appointmentGrade || employee.jobGrade || '').trim();
   const initialAppIncrements = employee.appointmentIncrements ?? 0;
+  const isHiredBeforeCutoff = !cutoffLimit || (hireDate && hireDate <= cutoffLimit);
   
-  if (hireDate || initialAppGrade) {
+  if (isHiredBeforeCutoff && (hireDate || initialAppGrade)) {
     events.push({
       id: `init-hire-${empId}`,
       source: 'تعيين',
@@ -240,7 +261,7 @@ export function getLatestEffectiveGradeInfo(
       isGradeChanging: true,
       isIncrementOnly: false,
       previousGrade: '-',
-      newGrade: initialAppGrade,
+      newGrade: initialAppGrade || 'الدرجة السابعة',
       increments: initialAppIncrements,
       effectiveDate: employee.directingDate || hireDate || '1990-01-01',
       decisionDate: hireDate || employee.directingDate || '1990-01-01',
@@ -254,21 +275,34 @@ export function getLatestEffectiveGradeInfo(
     .filter((c) => c.employeeId === empId || (fileNum && (c.fileNumber || '').trim() === fileNum))
     .forEach((c) => {
       const norm = normalizeCareerActionType(c.actionType);
-      const effDate = c.actionDate || c.decisionDate || c.createdAt?.slice(0, 10) || '';
-      const decDate = c.decisionDate || effDate;
-      const isInc = norm === 'علاوة دورية' || (c.actionType || '').includes('علاوة');
-      const hasGrade = !!(c.newGrade && c.newGrade !== '-' && c.newGrade.trim() !== '');
+      const effDate = c.actionDate || c.effectiveDate || c.decisionDate || c.createdAt?.slice(0, 10) || '';
+      if (cutoffLimit && effDate > cutoffLimit) return;
+      const decDate = c.decisionDate || c.decisionIssueDate || effDate;
+      const isInc = norm === 'علاوة دورية' || norm === 'علاوة سنوية' || (c.actionType || '').includes('علاوة');
+      const isNonGradeMovement = [
+        'تكليف',
+        'إنهاء تكليف',
+        'نقل',
+        'تغيير مكان العمل',
+        'ندب',
+        'انتهاء الندب',
+        'العودة من الندب',
+        'تغيير المسمى الوظيفي',
+        'حركة وظيفية أخرى',
+        'إعارة / نقل خارجي'
+      ].includes(norm);
+      const hasGrade = !isNonGradeMovement && !!(c.newGrade && c.newGrade !== '-' && c.newGrade.trim() !== '');
 
       events.push({
         id: `career-${c.id}`,
         source: 'سجل_مسيرة',
         actionType: c.actionType || norm,
         normalizedAction: norm,
-        isGradeChanging: !isInc && hasGrade,
+        isGradeChanging: !isInc && !isNonGradeMovement && hasGrade,
         isIncrementOnly: isInc,
         previousGrade: c.previousGrade || '',
         newGrade: c.newGrade || '',
-        increments: c.newIncrement ?? 0,
+        increments: c.newIncrement ?? c.newIncrementCount ?? 0,
         effectiveDate: effDate,
         decisionDate: decDate,
         decisionNumber: c.decisionNumber || '',
@@ -282,6 +316,7 @@ export function getLatestEffectiveGradeInfo(
     .forEach((p) => {
       const isExceptional = p.promotionType === 'ترقية استثنائية';
       const effDate = p.effectiveDate || p.decisionDate || p.createdAt?.slice(0, 10) || '';
+      if (cutoffLimit && effDate > cutoffLimit) return;
       const decDate = p.decisionDate || effDate;
       const norm: CareerActionType = isExceptional ? 'ترقية استثنائية' : 'ترقية';
       const hasGrade = !!(p.newGrade && p.newGrade !== '-' && p.newGrade.trim() !== '');
@@ -303,11 +338,12 @@ export function getLatestEffectiveGradeInfo(
       });
     });
 
-  // 4. Increments (Annual increments do NOT change grade)
+  // 4. Increments (Annual increments do NOT change grade or current grade date)
   increments
     .filter((i) => i.employeeId === empId || (fileNum && (i.fileNumber || '').trim() === fileNum))
     .forEach((i) => {
       const effDate = i.effectiveDate || i.date || i.createdAt?.slice(0, 10) || '';
+      if (cutoffLimit && effDate > cutoffLimit) return;
       const decDate = i.decisionDate || effDate;
       events.push({
         id: `inc-${i.id}`,
@@ -331,6 +367,7 @@ export function getLatestEffectiveGradeInfo(
     .filter((s) => s.employeeId === empId)
     .forEach((s) => {
       const effDate = s.effectiveDate || s.createdAt?.slice(0, 10) || '';
+      if (cutoffLimit && effDate > cutoffLimit) return;
       const decDate = s.effectiveDate || effDate;
       const is2023 = effDate.startsWith('2023');
       const isNum = isGeneralNumericalGrade(s.grade);
@@ -362,6 +399,7 @@ export function getLatestEffectiveGradeInfo(
     .forEach((g) => {
       const gp = g as any;
       const effDate = gp.effectiveDate || gp.procedureDate || gp.createdAt?.slice(0, 10) || '';
+      if (cutoffLimit && effDate > cutoffLimit) return;
       const decDate = gp.procedureDate || effDate;
       const pType = (gp.procedureType || '').trim();
       let norm: CareerActionType = 'ترقية';
@@ -404,6 +442,31 @@ export function getLatestEffectiveGradeInfo(
       uniqueEvents.push(ev);
     }
   });
+
+  // If cutoff limit is given and no valid events exist up to that date:
+  if (cutoffLimit && uniqueEvents.length === 0) {
+    return {
+      employeeId: employee.id,
+      jobNumber: employee.jobNumber || '',
+      employeeName: employee.fullName || '',
+      firstRecordedGrade: 'تحتاج إلى مراجعة',
+      latestHistoricalGrade: 'تحتاج إلى مراجعة',
+      latestGeneralGrade: 'تحتاج إلى مراجعة',
+      latestGradeAction: 'تحتاج إلى مراجعة',
+      effectiveDate: '',
+      displayedCurrentGrade: 'تحتاج إلى مراجعة',
+      currentIncrement: 0,
+      gradeEntryDate: '',
+      decisionDate: '',
+      decisionNumber: '',
+      isDifferentFromRecorded: true,
+      source: 'تحتاج إلى مراجعة',
+      chronologicalEventsCount: 0,
+      hasHistorical418: false,
+      hasGeneralGrade: false,
+      auditTrail: [`لا توجد أي حركات وظيفية أو تعيين معتمد للموظف حتى تاريخ (${cutoffLimit}) — تحتاج إلى مراجعة`]
+    };
+  }
 
   // Rule 2 CHRONOLOGICAL SORTING:
   // 1. Effective Date ascending
@@ -540,12 +603,17 @@ export function getLatestEffectiveGradeInfo(
     displayedCurrentGrade = latestGeneralGrade;
   } else if (currentGrade && !isRegulation418Grade(currentGrade)) {
     displayedCurrentGrade = normalizeGeneralGradeName(currentGrade);
-  } else if (employee.jobGrade && isGeneralNumericalGrade(employee.jobGrade)) {
-    displayedCurrentGrade = normalizeGeneralGradeName(employee.jobGrade);
   } else if (latestHistorical418Grade) {
     displayedCurrentGrade = latestHistorical418Grade;
-  } else if (employee.jobGrade) {
+  } else if (!cutoffLimit && employee.jobGrade && isGeneralNumericalGrade(employee.jobGrade)) {
+    displayedCurrentGrade = normalizeGeneralGradeName(employee.jobGrade);
+  } else if (!cutoffLimit && employee.jobGrade) {
     displayedCurrentGrade = employee.jobGrade;
+  } else if (cutoffLimit) {
+    displayedCurrentGrade = 'تحتاج إلى مراجعة';
+    latestGradeAction = 'تحتاج إلى مراجعة';
+    gradeEntryDate = '';
+    latestEffectiveDate = '';
   } else {
     displayedCurrentGrade = 'الدرجة السابعة';
   }
@@ -572,6 +640,34 @@ export function getLatestEffectiveGradeInfo(
     hasHistorical418,
     hasGeneralGrade,
     auditTrail
+  };
+}
+
+/**
+ * Single Source of Truth for Historical Competency Evaluation Grade:
+ * Determines the employee's active effective grade and grade date for the selected evaluation year.
+ * Returns 'تحتاج إلى مراجعة' if no valid grade exists on or before the evaluation year.
+ */
+export function getGradeAtEvaluationYear(
+  target: Employee | number | string,
+  evaluationYear: number,
+  context?: GradeCalculationContext
+): HistoricalGradeResult {
+  const info = getLatestEffectiveGradeInfo(target, {
+    ...context,
+    asOfYear: evaluationYear
+  });
+
+  const isUnderReview = !info.displayedCurrentGrade || 
+                        info.displayedCurrentGrade === 'تحتاج إلى مراجعة' || 
+                        info.chronologicalEventsCount === 0;
+
+  return {
+    effectiveGrade: isUnderReview ? 'تحتاج إلى مراجعة' : info.displayedCurrentGrade,
+    effectiveGradeDate: isUnderReview ? '' : (info.gradeEntryDate || info.effectiveDate || ''),
+    decisionNumber: isUnderReview ? '' : info.decisionNumber,
+    movementType: isUnderReview ? 'تحتاج إلى مراجعة' : info.latestGradeAction,
+    isUnderReview
   };
 }
 
@@ -625,12 +721,18 @@ export function calculateEmployeeCurrentGrade(
   settlements: StatusSettlementRecord[] = [],
   generalProcedures: GeneralProcedureRecord[] = []
 ): GradeRecalculationResult {
+  const safeCareerRecords = careerRecords || [];
+  const safePromotions = promotions || [];
+  const safeIncrements = increments || [];
+  const safeSettlements = settlements || [];
+  const safeGeneralProcedures = generalProcedures || [];
+
   const info = getLatestEffectiveGradeInfo(employee, {
-    careerRecords,
-    promotions,
-    increments,
-    settlements,
-    generalProcedures
+    careerRecords: safeCareerRecords,
+    promotions: safePromotions,
+    increments: safeIncrements,
+    settlements: safeSettlements,
+    generalProcedures: safeGeneralProcedures
   });
   const auditTrail: string[] = [...info.auditTrail];
   const empId = employee.id;
@@ -674,7 +776,7 @@ export function calculateEmployeeCurrentGrade(
   }
 
   // Direct Career Promotion Records
-  careerRecords
+  safeCareerRecords
     .filter((c) => c.employeeId === empId || (fileNum && (c.fileNumber || '').trim() === fileNum))
     .forEach((c) => {
       const norm = normalizeCareerActionType(c.actionType);
@@ -695,7 +797,7 @@ export function calculateEmployeeCurrentGrade(
     });
 
   // Legacy Promotion Records
-  promotions
+  safePromotions
     .filter((p) => p.employeeId === empId || (fileNum && (p.fileNumber || '').trim() === fileNum))
     .forEach((p) => {
       const isExceptional = p.promotionType === 'ترقية استثنائية';
@@ -716,7 +818,7 @@ export function calculateEmployeeCurrentGrade(
     });
 
   // Legacy Increments
-  increments
+  safeIncrements
     .filter((i) => i.employeeId === empId || (fileNum && (i.fileNumber || '').trim() === fileNum))
     .forEach((i) => {
       const effDate = i.effectiveDate || i.date || i.createdAt?.slice(0, 10) || '';
@@ -736,7 +838,7 @@ export function calculateEmployeeCurrentGrade(
     });
 
   // Status Settlements
-  settlements
+  safeSettlements
     .filter((s) => s.employeeId === empId)
     .forEach((s) => {
       const effDate = s.effectiveDate || s.createdAt?.slice(0, 10) || '';
@@ -762,7 +864,7 @@ export function calculateEmployeeCurrentGrade(
     });
 
   // General Procedures (e.g. Exceptional promotions, Grade assignments)
-  generalProcedures
+  safeGeneralProcedures
     .filter((g) => g.employeeId === empId || (fileNum && (g.fileNumber || '').trim() === fileNum))
     .forEach((g) => {
       const gp = g as any;
@@ -1024,12 +1126,22 @@ export function recalculateCurrentGrade(
     generalProcedures
   );
 
+  const summary = calculateEmployeeCareerSummary(
+    employee,
+    careerRecords,
+    promotions,
+    increments,
+    settlements
+  );
+
   const updatedEmployee: Employee = {
     ...employee,
     jobGrade: result.calculatedJobGrade,
     currentIncrement: result.calculatedIncrement,
     gradeEntryDate: result.calculatedGradeEntryDate || employee.gradeEntryDate,
     salaryScale: result.calculatedSalaryScale,
+    workLocation: summary.currentWorkLocation || employee.workLocation,
+    department: summary.currentDepartment || employee.department,
     reviewStatus: result.recommendedReviewStatus,
     reviewNotes: result.anomalyReason 
       ? `${employee.reviewNotes ? employee.reviewNotes + ' | ' : ''}تدقيق الدرجات: ${result.anomalyReason}` 

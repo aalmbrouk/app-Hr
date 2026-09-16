@@ -208,7 +208,7 @@ export async function executeSafeCleanupToLegitimateCount(
   }
 
   // Step 3: Safe Filter keeping all legitimate records
-  const legitimateEmployees = currentDb.employees.filter((emp) => !removalIds.has(emp.id));
+  const legitimateEmployees = (currentDb.employees || []).filter((emp) => !removalIds.has(emp.id));
 
   // Step 4: Verify Final Count
   if (legitimateEmployees.length !== targetCount) {

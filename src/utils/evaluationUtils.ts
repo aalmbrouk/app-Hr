@@ -8,6 +8,7 @@ import {
   EvaluationRating,
   EvaluationItemValue
 } from '../types';
+import { getGradeAtEvaluationYear } from './gradeCalculationEngine';
 
 export interface EvaluationCategoryItem {
   id: string;
@@ -94,7 +95,8 @@ export function getEvaluationPeriodText(year: number): string {
 
 /**
  * Historical Data Resolution:
- * Retrieves the employee's grade, position, and status that were active during the evaluation year
+ * Retrieves the employee's grade, grade effective date, position, and status active during the evaluation year.
+ * Powered by the centralized grade calculation engine.
  */
 export function getEmployeeInfoForEvaluationYear(
   employee: Employee,
@@ -114,49 +116,33 @@ export function getEmployeeInfoForEvaluationYear(
   workplace: string;
   nationality: string;
   sector: string;
+  isUnderReview: boolean;
+  decisionNumber: string;
 } {
-  const cutoffDate = `${evaluationYear}-12-31`;
-
-  // Check career promotions / records for the most recent action on or before cutoff date
-  const pastCareerRecords = careerRecords
-    .filter(r => r.employeeId === employee.id && r.actionDate <= cutoffDate)
-    .sort((a, b) => b.actionDate.localeCompare(a.actionDate));
-
-  const pastPromotions = promotions
-    .filter(p => p.employeeId === employee.id && p.effectiveDate <= cutoffDate)
-    .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
-
-  let historicalGrade = employee.jobGrade;
-  let historicalGradeDate = employee.gradeEntryDate || employee.hireDate;
-
-  if (pastCareerRecords.length > 0) {
-    historicalGrade = pastCareerRecords[0].newGrade;
-    historicalGradeDate = pastCareerRecords[0].actionDate;
-  } else if (pastPromotions.length > 0) {
-    historicalGrade = pastPromotions[0].newGrade;
-    historicalGradeDate = pastPromotions[0].effectiveDate;
-  } else if (employee.appointmentGrade && employee.hireDate) {
-    // If evaluation year was earlier than hire year, fallback safely
-    if (new Date(employee.hireDate).getFullYear() >= evaluationYear) {
-      historicalGrade = employee.appointmentGrade;
-      historicalGradeDate = employee.hireDate;
-    }
-  }
+  // Use Centralized Single Source of Truth Engine
+  const historicalGradeInfo = getGradeAtEvaluationYear(employee, evaluationYear, {
+    careerRecords,
+    promotions,
+    increments,
+    settlements
+  });
 
   const birthPlaceStr = employee.birthPlace ? ` - ${employee.birthPlace}` : '';
   const birthDateAndPlace = `${employee.birthDate || 'غير محدد'}${birthPlaceStr}`;
 
   return {
     birthDateAndPlace,
-    hireDate: employee.hireDate || employee.bloodBankStartDate || '2010-01-01',
-    qualification: employee.qualification || 'مؤهل جامعي تخصصي',
-    qualificationDate: employee.graduationYear || employee.hireDate || '2010-01-01',
+    hireDate: employee.hireDate || employee.directingDate || employee.bloodBankStartDate || '',
+    qualification: employee.qualification || 'مؤهل تخصصي',
+    qualificationDate: employee.graduationYear || employee.hireDate || '',
     currentJobTitle: employee.jobTitle || 'موظف',
-    currentGrade: historicalGrade || 'الدرجة السادسة',
-    gradeDate: historicalGradeDate || '2021-01-01',
+    currentGrade: historicalGradeInfo.effectiveGrade,
+    gradeDate: historicalGradeInfo.effectiveGradeDate,
     workplace: employee.department || 'مصرف الدم المركزي المرج',
     nationality: employee.nationality || 'ليبي',
-    sector: 'الصحة'
+    sector: 'الصحة',
+    isUnderReview: historicalGradeInfo.isUnderReview,
+    decisionNumber: historicalGradeInfo.decisionNumber
   };
 }
 
@@ -168,10 +154,36 @@ export function createNewEvaluation(
   evaluationYear: number = new Date().getFullYear(),
   careerRecords: CareerPromotionRecord[] = [],
   promotions: PromotionRecord[] = [],
+  incrementsOrManager?: IncrementRecord[] | string,
+  settlementsOrUser?: StatusSettlementRecord[] | string,
   generalManagerName: string = 'نجيب صالح بوحسن',
   currentUser: string = 'شؤون الموظفين'
 ): AnnualPerformanceEvaluation {
-  const historicalInfo = getEmployeeInfoForEvaluationYear(employee, evaluationYear, careerRecords, promotions);
+  let increments: IncrementRecord[] = [];
+  let settlements: StatusSettlementRecord[] = [];
+  let finalGeneralManagerName = generalManagerName;
+  let finalCurrentUser = currentUser;
+
+  if (typeof incrementsOrManager === 'string') {
+    finalGeneralManagerName = incrementsOrManager;
+    finalCurrentUser = typeof settlementsOrUser === 'string' ? settlementsOrUser : currentUser;
+  } else {
+    if (Array.isArray(incrementsOrManager)) {
+      increments = incrementsOrManager;
+    }
+    if (Array.isArray(settlementsOrUser)) {
+      settlements = settlementsOrUser;
+    }
+  }
+
+  const historicalInfo = getEmployeeInfoForEvaluationYear(
+    employee, 
+    evaluationYear, 
+    careerRecords, 
+    promotions, 
+    increments, 
+    settlements
+  );
   
   // Default empty scores for handwritten form
   const initialScores: Record<string, EvaluationItemValue> = {};

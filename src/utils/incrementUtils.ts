@@ -124,15 +124,15 @@ export function calculateEmployeeIncrementBreakdown(
   const totalIncrements = emp.currentIncrement || 1;
 
   // Filter records for this employee
-  const empIncrements = increments
+  const empIncrements = (increments || [])
     .filter((i) => i.employeeId === emp.id)
     .sort((a, b) => new Date(a.effectiveDate || a.createdAt || '').getTime() - new Date(b.effectiveDate || b.createdAt || '').getTime());
 
-  const empPromotions = promotions
+  const empPromotions = (promotions || [])
     .filter((p) => p.employeeId === emp.id)
     .sort((a, b) => new Date(a.effectiveDate || a.decisionDate || a.createdAt || '').getTime() - new Date(b.effectiveDate || b.decisionDate || b.createdAt || '').getTime());
 
-  const empSettlements = settlements
+  const empSettlements = (settlements || [])
     .filter((s) => s.employeeId === emp.id)
     .sort((a, b) => new Date(a.effectiveDate || a.createdAt || '').getTime() - new Date(b.effectiveDate || b.createdAt || '').getTime());
 

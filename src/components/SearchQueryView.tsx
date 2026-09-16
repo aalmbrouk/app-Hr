@@ -10,7 +10,7 @@ interface SearchQueryViewProps {
 }
 
 export const SearchQueryView: React.FC<SearchQueryViewProps> = ({
-  employees,
+  employees = [],
   onSelectEmployee,
   onPrintCard
 }) => {
@@ -29,7 +29,7 @@ export const SearchQueryView: React.FC<SearchQueryViewProps> = ({
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
 
   const filteredResults = useMemo(() => {
-    return employees.filter((emp) => {
+    return (employees || []).filter((emp) => {
       // Partial name match
       if (nameQuery.trim() && !emp.fullName.toLowerCase().includes(nameQuery.trim().toLowerCase())) return false;
       if (nationalIdQuery.trim() && !emp.nationalId.includes(nationalIdQuery.trim())) return false;

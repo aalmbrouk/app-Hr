@@ -117,10 +117,10 @@ export const EmployeeDossierPrintModal: React.FC<EmployeeDossierPrintModalProps>
   };
 
   // Filter records for this employee
-  const empLeaves = leaves.filter((l) => l.employeeId === employee.id);
-  const empQuals = qualifications.filter((q) => q.employeeId === employee.id);
-  const empEvals = evaluations.filter((e) => e.employeeId === employee.id).sort((a, b) => b.evaluationYear - a.evaluationYear);
-  const empDisciplinary = disciplinary.filter((d) => d.employeeId === employee.id);
+  const empLeaves = (leaves || []).filter((l) => l.employeeId === employee.id);
+  const empQuals = (qualifications || []).filter((q) => q.employeeId === employee.id);
+  const empEvals = (evaluations || []).filter((e) => e.employeeId === employee.id).sort((a, b) => b.evaluationYear - a.evaluationYear);
+  const empDisciplinary = (disciplinary || []).filter((d) => d.employeeId === employee.id);
   
   const careerHistory = getEmployeeCareerHistory(
     employee.id,

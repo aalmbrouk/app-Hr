@@ -45,9 +45,9 @@ interface IncrementHistoryModalProps {
 
 export const IncrementHistoryModal: React.FC<IncrementHistoryModalProps> = ({
   employee,
-  increments,
-  promotions,
-  settlements,
+  increments = [],
+  promotions = [],
+  settlements = [],
   generalProcedures = [],
   isOpen,
   onClose,
@@ -67,14 +67,14 @@ export const IncrementHistoryModal: React.FC<IncrementHistoryModalProps> = ({
   // Calculate deep breakdown
   const breakdown = calculateEmployeeIncrementBreakdown(
     employee,
-    increments,
-    promotions,
-    settlements,
-    generalProcedures
+    increments || [],
+    promotions || [],
+    settlements || [],
+    generalProcedures || []
   );
 
   // Employee increment transactions sorted chronologically
-  const empIncrements = increments
+  const empIncrements = (increments || [])
     .filter((i) => i.employeeId === employee.id)
     .sort((a, b) => new Date(b.effectiveDate || b.createdAt || '').getTime() - new Date(a.effectiveDate || a.createdAt || '').getTime());
 

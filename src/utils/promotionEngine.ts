@@ -287,14 +287,14 @@ export function getEmployeeQualifyingIncrements(
   let gradeDateStr = employee.gradeEntryDate || employee.eligibilityDate || employee.directingDate || employee.hireDate || '2020-01-01';
 
   // Check if there is an official promotion establishing the current grade
-  const empPromos = promotions.filter((p) => p.employeeId === empId || (fileNum && (p.fileNumber || '').trim() === fileNum));
+  const empPromos = (promotions || []).filter((p) => p.employeeId === empId || (fileNum && (p.fileNumber || '').trim() === fileNum));
   const latestPromo = empPromos[empPromos.length - 1];
   if (latestPromo && latestPromo.newGrade === effectiveCurrentGrade && latestPromo.effectiveDate) {
     gradeDateStr = latestPromo.effectiveDate;
   }
 
   // Count actual recorded qualifying increments granted *since* entering the current grade
-  const recordedInGrade = increments.filter((inc) => {
+  const recordedInGrade = (increments || []).filter((inc) => {
     const matchEmp = inc.employeeId === empId || (fileNum && (inc.fileNumber || '').trim() === fileNum);
     if (!matchEmp) return false;
     const incDate = inc.effectiveDate || inc.date || inc.createdAt?.slice(0, 10) || '';
@@ -302,7 +302,7 @@ export function getEmployeeQualifyingIncrements(
   });
 
   // Also count any annual increments in career records
-  const careerIncrementsInGrade = careerRecords.filter((cr) => {
+  const careerIncrementsInGrade = (careerRecords || []).filter((cr) => {
     const matchEmp = cr.employeeId === empId || (fileNum && (cr.fileNumber || '').trim() === fileNum);
     if (!matchEmp) return false;
     const isInc = cr.actionType === 'علاوة دورية' || (cr.actionType || '').includes('علاوة');
@@ -340,7 +340,7 @@ export function getEmployeeCompetencyInfo(
   promotions: PromotionRecord[] = []
 ): { rating: CompetencyReportRating; warning?: string; isAvailable: boolean; evaluationYear?: number } {
   // 1. Search in recorded annual evaluations (sorted newest first)
-  const empEvaluations = annualEvaluations
+  const empEvaluations = (annualEvaluations || [])
     .filter((e) => e.employeeId === employeeId)
     .sort((a, b) => (b.evaluationYear || 0) - (a.evaluationYear || 0));
 
@@ -364,7 +364,7 @@ export function getEmployeeCompetencyInfo(
   }
 
   // 2. Check latest promotion record if it has competencyRating specified
-  const empPromos = promotions.filter((p) => p.employeeId === employeeId);
+  const empPromos = (promotions || []).filter((p) => p.employeeId === employeeId);
   const promoWithRating = [...empPromos].reverse().find((p) => p.competencyRating && p.competencyRating !== 'غير متوفر');
   if (promoWithRating && promoWithRating.competencyRating) {
     return {
@@ -441,7 +441,7 @@ export function calculatePromotionEligibility(
   auditTrail.push(`الدرجة الحالية النافذة: ${currentGrade} (تاريخ النفاذ: ${currentGradeDateDisplay}).`);
 
   // Step 2: Look for any existing official promotion decision for this employee
-  const empPromotions = promotions
+  const empPromotions = (promotions || [])
     .filter((p) => p.employeeId === empId || (fileNum && (p.fileNumber || '').trim() === fileNum))
     .sort((a, b) => new Date(b.effectiveDate || b.decisionDate || '').getTime() - new Date(a.effectiveDate || a.decisionDate || '').getTime());
 

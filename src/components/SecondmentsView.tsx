@@ -11,8 +11,8 @@ interface SecondmentsViewProps {
 }
 
 export const SecondmentsView: React.FC<SecondmentsViewProps> = ({
-  employees,
-  secondments,
+  employees = [],
+  secondments = [],
   onAddSecondment,
   onUpdateStatus
 }) => {

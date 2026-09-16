@@ -78,15 +78,26 @@ export const OfficialPerformanceEvaluationModal: React.FC<OfficialPerformanceEva
 
   useEffect(() => {
     if (isOpen) {
+      const year = initialEvaluation.evaluationYear || new Date().getFullYear();
+      const historical = getEmployeeInfoForEvaluationYear(
+        employee,
+        year,
+        careerRecords,
+        promotions,
+        increments,
+        settlements
+      );
       setFormData({ 
         ...initialEvaluation,
+        currentGrade: initialEvaluation.currentGrade || historical.currentGrade,
+        gradeDate: initialEvaluation.gradeDate || historical.gradeDate,
         higherSupervisorName: initialEvaluation.higherSupervisorName || generalManagerName || 'نجيب صالح بوحسن'
       });
       setSaveSuccess(false);
       setPdfSuccess(false);
       setPrintError(null);
     }
-  }, [isOpen, initialEvaluation, generalManagerName]);
+  }, [isOpen, initialEvaluation, generalManagerName, employee, careerRecords, promotions, increments, settlements]);
 
   // Handle escape key to close modal smoothly
   useEffect(() => {
@@ -475,23 +486,33 @@ export const OfficialPerformanceEvaluationModal: React.FC<OfficialPerformanceEva
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold mb-1">الدرجة الوظيفية (لسنة {formData.evaluationYear})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-slate-400 font-bold">الدرجة الوظيفية (لسنة {formData.evaluationYear})</label>
+                      {formData.currentGrade === 'تحتاج إلى مراجعة' && (
+                        <span className="text-[10px] bg-red-900/60 text-red-300 border border-red-700 px-1.5 py-0.5 rounded font-bold">
+                          تحتاج إلى مراجعة
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={formData.currentGrade}
                       onChange={(e) => setFormData(prev => ({ ...prev, currentGrade: e.target.value }))}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white"
+                      className={`w-full bg-slate-900 border ${formData.currentGrade === 'تحتاج إلى مراجعة' ? 'border-red-600 text-red-400 font-bold' : 'border-slate-700 text-white'} rounded-lg px-3 py-2`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold mb-1">تاريخ الحصول على الدرجة</label>
+                    <label className="block text-slate-400 font-bold mb-1">تاريخ نيل الدرجة الحالية</label>
                     <input
                       type="date"
                       value={formData.gradeDate}
                       onChange={(e) => setFormData(prev => ({ ...prev, gradeDate: e.target.value }))}
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white"
                     />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      تاريخ نفاذ الدرجة الفعالة لسنة {formData.evaluationYear}
+                    </span>
                   </div>
 
                   <div>

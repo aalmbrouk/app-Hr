@@ -54,8 +54,8 @@ interface PerformanceEvaluationViewProps {
 }
 
 export const PerformanceEvaluationView: React.FC<PerformanceEvaluationViewProps> = ({
-  employees,
-  evaluations,
+  employees = [],
+  evaluations = [],
   careerRecords = [],
   promotions = [],
   increments = [],
@@ -90,10 +90,10 @@ export const PerformanceEvaluationView: React.FC<PerformanceEvaluationViewProps>
   const [duplicateWarning, setDuplicateWarning] = useState<AnnualPerformanceEvaluation | null>(null);
 
   // Departments list
-  const departments = Array.from(new Set(employees.map(e => e.department).filter(Boolean)));
+  const departments = Array.from(new Set((employees || []).map(e => e.department).filter(Boolean)));
 
   // Filtered evaluations
-  const filteredEvaluations = evaluations.filter(ev => {
+  const filteredEvaluations = (evaluations || []).filter(ev => {
     const matchesYear = selectedYear === 'ALL' || String(ev.evaluationYear) === selectedYear;
     const matchesDept = selectedDept === 'ALL' || ev.workplace?.includes(selectedDept);
     const matchesStatus = selectedStatus === 'ALL' || ev.status === selectedStatus;

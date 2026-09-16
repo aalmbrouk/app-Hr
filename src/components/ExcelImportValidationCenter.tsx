@@ -67,6 +67,7 @@ import {
 } from '../utils/fakeRecordDetection';
 import { normalizeDateStorage, formatDateDisplay } from '../utils/dateUtils';
 import { createDatabaseBackup } from '../utils/backupService';
+import { getGenderFromNationalId } from '../utils/nationalIdUtils';
 
 // Types for the Validation & Inspection Engine
 export type ValidationStatus = 'valid' | 'warning' | 'critical' | 'duplicate' | 'existing_match' | 'new_employee';
@@ -1202,7 +1203,7 @@ export const ExcelImportValidationCenter: React.FC<ExcelImportValidationCenterPr
             motherName: '',
             birthDate: '',
             birthPlace: '',
-            gender: 'ذكر',
+            gender: getGenderFromNationalId(nid),
             maritalStatus: 'أعزب',
             status: (rec.status as EmploymentStatus) || 'على رأس العمل',
             hireDate: rec.hireDate || rec.actionDate || '2015-01-01',

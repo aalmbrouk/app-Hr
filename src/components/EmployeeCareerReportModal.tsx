@@ -205,7 +205,7 @@ export const EmployeeCareerReportModal: React.FC<EmployeeCareerReportModalProps>
 
           <div className="mt-3 bg-red-900 text-white text-center py-2 rounded-lg font-black text-sm tracking-wider shadow-sm flex items-center justify-center gap-2">
             <Award className="w-5 h-5 text-amber-300" />
-            <span>السجل الوظيفي للترقيات والعلاوات والندب على الدرجة للموظف</span>
+            <span>السجل الوظيفي الشامل للمسار المهني والترقيات والتكليفات ومواقع العمل</span>
           </div>
         </div>
 
@@ -216,51 +216,72 @@ export const EmployeeCareerReportModal: React.FC<EmployeeCareerReportModalProps>
             <strong className="text-gray-900 text-sm font-black">{employee.fullName}</strong>
           </div>
           <div>
-            <span className="text-gray-500 block text-[11px]">القسم / الإدارة:</span>
-            <strong className="text-gray-900 font-bold">{employee.department}</strong>
+            <span className="text-gray-500 block text-[11px]">القسم / الإدارة الحالية:</span>
+            <strong className="text-gray-900 font-bold">{summary.currentDepartment || employee.department}</strong>
           </div>
           <div>
             <span className="text-gray-500 block text-[11px]">المسمى الوظيفي:</span>
             <strong className="text-gray-900 font-bold">{employee.jobTitle}</strong>
           </div>
           <div>
+            <span className="text-gray-500 block text-[11px]">مكان العمل الحالي:</span>
+            <strong className="text-emerald-950 font-bold">{summary.currentWorkLocation || employee.workLocation || 'مصرف الدم المركزي المرج'}</strong>
+          </div>
+          <div>
+            <span className="text-gray-500 block text-[11px]">التكليف القائم (إن وجد):</span>
+            <strong className="text-indigo-950 font-bold">{summary.currentAssignment || 'لا يوجد تكليف حالي'}</strong>
+          </div>
+          <div>
+            <span className="text-gray-500 block text-[11px]">الدرجة المالية الحالية:</span>
+            <strong className="text-red-900 font-extrabold">{summary.currentGrade || employee.jobGrade} (علاوة {summary.currentIncrement ?? employee.currentIncrement ?? 1})</strong>
+          </div>
+          <div>
             <span className="text-gray-500 block text-[11px]">تاريخ المباشرة الأصلية:</span>
             <strong className="text-gray-900 font-mono">{formatDateDisplay(employee.directingDate || employee.hireDate || '')}</strong>
           </div>
+          <div>
+            <span className="text-gray-500 block text-[11px]">تاريخ استحقاق الترقية:</span>
+            <strong className="text-gray-900 font-mono">{formatDateDisplay(employee.eligibilityDate || '')}</strong>
+          </div>
         </div>
 
-        {/* Career Summary Statistics Grid (MANDATORY REQUIREMENT) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5 text-center">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-red-950">
-            <span className="text-[11px] font-bold block text-red-800">عدد الترقيات</span>
-            <span className="text-xl font-black text-red-900">{summary.promotionsCount}</span>
+        {/* Career Summary Statistics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-red-950">
+            <span className="text-[10px] font-bold block text-red-800">الترقيات</span>
+            <span className="text-lg font-black text-red-900">{summary.promotionsCount}</span>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-2.5 text-blue-950">
-            <span className="text-[11px] font-bold block text-blue-800">عدد العلاوات الدورية</span>
-            <span className="text-xl font-black text-blue-900">{summary.annualIncrementsCount}</span>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-2 text-blue-950">
+            <span className="text-[10px] font-bold block text-blue-800">العلاوات الدورية</span>
+            <span className="text-lg font-black text-blue-900">{summary.annualIncrementsCount}</span>
           </div>
 
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-emerald-950">
-            <span className="text-[11px] font-bold block text-emerald-800">عدد مرات الندب على درجة</span>
-            <span className="text-xl font-black text-emerald-900">{summary.secondmentToGradeCount}</span>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-2 text-indigo-950">
+            <span className="text-[10px] font-bold block text-indigo-800">التكليفات والمهام</span>
+            <span className="text-lg font-black text-indigo-900">{summary.assignmentsCount}</span>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-amber-950">
-            <span className="text-[11px] font-bold block text-amber-800">الترقيات الاستثنائية</span>
-            <span className="text-xl font-black text-amber-900">{summary.exceptionalPromotionsCount}</span>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-emerald-950">
+            <span className="text-[10px] font-bold block text-emerald-800">النقل ومقر العمل</span>
+            <span className="text-lg font-black text-emerald-900">{summary.transfersCount + summary.locationChangesCount}</span>
           </div>
 
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 text-purple-950 col-span-2 sm:col-span-4 md:col-span-1">
-            <span className="text-[11px] font-bold block text-purple-800">تسويات الوضع</span>
-            <span className="text-xl font-black text-purple-900">{summary.statusSettlementsCount}</span>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-amber-950">
+            <span className="text-[10px] font-bold block text-amber-800">الندب والإعارة</span>
+            <span className="text-lg font-black text-amber-900">{summary.secondmentsCount + summary.secondmentToGradeCount}</span>
+          </div>
+
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-2 text-purple-950">
+            <span className="text-[10px] font-bold block text-purple-800">تسويات ومسميات</span>
+            <span className="text-lg font-black text-purple-900">{summary.statusSettlementsCount + summary.jobTitleChangesCount}</span>
           </div>
         </div>
 
         {/* Current Grade and Dates Ribbon */}
         <div className="bg-amber-50/70 border border-amber-300/80 rounded-xl p-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-bold text-gray-800">
           <div>
-            <span className="text-gray-500 font-normal block text-[10px]">الدرجة الحالية:</span>
+            <span className="text-gray-500 font-normal block text-[10px]">الدرجة المالية الحالية:</span>
             <span className="text-red-900 font-extrabold">{summary.currentGrade}</span>
           </div>
           <div>
@@ -289,19 +310,18 @@ export const EmployeeCareerReportModal: React.FC<EmployeeCareerReportModalProps>
               <tr>
                 <th className="py-2.5 px-3">التاريخ</th>
                 <th className="py-2.5 px-3">نوع الإجراء</th>
-                <th className="py-2.5 px-3">الدرجة السابقة</th>
-                <th className="py-2.5 px-3">الدرجة الممنوحة</th>
-                <th className="py-2.5 px-3">عدد العلاوات</th>
+                <th className="py-2.5 px-3">تفاصيل الحركة / المسمى / الموقع</th>
+                <th className="py-2.5 px-3">الدرجة والعلاوة</th>
                 <th className="py-2.5 px-3">رقم القرار</th>
                 <th className="py-2.5 px-3">الجهة المصدرة للقرار</th>
-                <th className="py-2.5 px-3">البيان والملاحظات</th>
+                <th className="py-2.5 px-3">الملاحظات والبيان</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 text-[11px]">
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
-                    لا توجد سجلات ترقيات أو علاوات سابقة مسجلة لهذا الموظف
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    لا توجد سجلات ترقيات أو حركات وظيفية سابقة مسجلة لهذا الموظف
                   </td>
                 </tr>
               ) : (
@@ -318,18 +338,47 @@ export const EmployeeCareerReportModal: React.FC<EmployeeCareerReportModalProps>
                           {meta.label}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-gray-600">
-                        {rec.previousGrade ? (
-                          <span>{rec.previousGrade} {rec.previousIncrement !== undefined ? `(${rec.previousIncrement} علاوة)` : ''}</span>
-                        ) : (
-                          '—'
+                      <td className="py-2.5 px-3 font-bold text-gray-900">
+                        {/* Conditional Movement Details */}
+                        {rec.assignmentTitle && (
+                          <div>
+                            <span className="text-indigo-950 font-black">{rec.assignmentTitle}</span>
+                            {rec.assignmentType && <span className="text-[10px] text-indigo-700 block font-normal">({rec.assignmentType})</span>}
+                          </div>
+                        )}
+                        {rec.newWorkLocation && (
+                          <div>
+                            <span className="text-emerald-950 font-black">{rec.newWorkLocation}</span>
+                            {rec.previousWorkLocation && <span className="text-[10px] text-slate-500 block font-normal">من: {rec.previousWorkLocation}</span>}
+                          </div>
+                        )}
+                        {rec.secondmentEntity && (
+                          <div>
+                            <span className="text-amber-950 font-black">{rec.secondmentEntity}</span>
+                            {rec.secondmentType && <span className="text-[10px] text-amber-700 block font-normal">({rec.secondmentType})</span>}
+                          </div>
+                        )}
+                        {rec.newJobTitle && (
+                          <div>
+                            <span className="text-purple-950 font-black">{rec.newJobTitle}</span>
+                            {rec.previousJobTitle && <span className="text-[10px] text-slate-500 block font-normal">من: {rec.previousJobTitle}</span>}
+                          </div>
+                        )}
+                        {!rec.assignmentTitle && !rec.newWorkLocation && !rec.secondmentEntity && !rec.newJobTitle && (
+                          <span>{rec.newGrade || rec.actionType}</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 font-bold text-gray-900">
-                        {rec.newGrade || '—'}
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-blue-900">
-                        {rec.newIncrement !== undefined ? `${rec.newIncrement} علاوة` : '—'}
+                      <td className="py-2.5 px-3 text-gray-800">
+                        {rec.newGrade ? (
+                          <div>
+                            <span className="font-bold text-red-900">{rec.newGrade}</span>
+                            {rec.newIncrement !== undefined && (
+                              <span className="text-blue-900 font-bold block text-[10px]">علاوة {rec.newIncrement}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-[10px]">درجة ثابتة</span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 font-bold text-red-900 font-mono">
                         {rec.decisionNumber || '—'}
@@ -337,8 +386,8 @@ export const EmployeeCareerReportModal: React.FC<EmployeeCareerReportModalProps>
                       <td className="py-2.5 px-3 text-gray-700 text-[10px]">
                         {rec.issuingAuthority || 'مصرف الدم المركزي'}
                       </td>
-                      <td className="py-2.5 px-3 text-gray-500 text-[10px] max-w-xs truncate">
-                        {rec.notes || '—'}
+                      <td className="py-2.5 px-3 text-gray-500 text-[10px] max-w-xs">
+                        {rec.notes || rec.assignmentRole || rec.reason || '—'}
                       </td>
                     </tr>
                   );

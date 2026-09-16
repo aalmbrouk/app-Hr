@@ -55,7 +55,7 @@ import { validateEmployeeIdentityStrict } from './utils/fakeRecordDetection';
 import { FullAppDatabase } from './utils/storageTypes';
 import { loadAppDatabase, saveAppDatabase } from './utils/storageService';
 import { MigrationCommitResult } from './utils/excelMigrationUtils';
-import { registerActiveDatabaseRecords } from './utils/gradeCalculationEngine';
+import { registerActiveDatabaseRecords, recalculateCurrentGrade } from './utils/gradeCalculationEngine';
 
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -94,6 +94,14 @@ export default function App() {
 
   // Active Tab Navigation
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+
+  // Selected employee for quick profile opening from global search
+  const [selectedEmployeeForProfileId, setSelectedEmployeeForProfileId] = useState<number | null>(null);
+
+  const handleSelectEmployeeFromSearch = (emp: Employee) => {
+    setSelectedEmployeeForProfileId(emp.id);
+    setActiveTab('employees');
+  };
 
   // Database initialization / loading status
   const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
@@ -384,9 +392,48 @@ export default function App() {
     logAction('تعديل', `تعديل حالة الإجازة ${id} إلى ${status}`, id);
   };
 
+  // Helper to synchronize employee current grade & status upon any career record change
+  const syncEmployeeCareerStatus = (
+    employeeId: number,
+    updatedCareerRecords: CareerPromotionRecord[],
+    updatedPromos: PromotionRecord[] = promotions,
+    updatedIncs: IncrementRecord[] = increments,
+    updatedSetts: StatusSettlementRecord[] = settlements
+  ) => {
+    const emp = employees.find((e) => e.id === employeeId);
+    if (!emp) return;
+
+    const { updatedEmployee } = recalculateCurrentGrade(
+      emp,
+      updatedCareerRecords,
+      updatedPromos,
+      updatedIncs,
+      updatedSetts,
+      generalProcedures
+    );
+
+    // Keep Original Appointment Data strictly unchanged (Requirement 1 & 7)
+    const preservedEmp: Employee = {
+      ...updatedEmployee,
+      hireDate: emp.hireDate,
+      appointmentGrade: emp.appointmentGrade,
+      appointmentIncrements: emp.appointmentIncrements,
+      appointmentSalarySystem: emp.appointmentSalarySystem,
+      hiringEntity: emp.hiringEntity,
+      directingDate: emp.directingDate
+    };
+
+    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? preservedEmp : e)));
+  };
+
   // Career Promotion & Increment & Secondment Records (Unified Architecture)
   const handleAddCareerRecord = (record: CareerPromotionRecord) => {
-    setCareerRecords((prev) => [record, ...prev]);
+    const nextCareerRecords = [record, ...careerRecords];
+    setCareerRecords(nextCareerRecords);
+
+    let nextPromos = promotions;
+    let nextIncs = increments;
+    let nextSetts = settlements;
 
     // Keep individual module collections synchronized
     if (record.actionType === 'ترقية' || record.actionType === 'ترقية استثنائية') {
@@ -407,9 +454,9 @@ export default function App() {
         createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
         createdAt: record.createdAt
       };
-      setPromotions((prev) => [promo, ...prev]);
-      handleUpdateEmployeeGrade(record.employeeId, record.newGrade, record.newIncrement, record.actionDate);
-    } else if (record.actionType === 'علاوة دورية') {
+      nextPromos = [promo, ...promotions];
+      setPromotions(nextPromos);
+    } else if (record.actionType === 'علاوة دورية' || record.actionType === 'علاوة سنوية') {
       const inc: IncrementRecord = {
         id: record.id,
         employeeId: record.employeeId,
@@ -424,11 +471,8 @@ export default function App() {
         createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
         createdAt: record.createdAt
       };
-      setIncrements((prev) => [inc, ...prev]);
-      handleUpdateEmployeeIncrement(record.employeeId, record.newIncrement);
-    } else if (record.actionType === 'ندب على درجة') {
-      // Secondment to grade updates current job and financial grade
-      handleUpdateEmployeeGrade(record.employeeId, record.newGrade, record.newIncrement, record.actionDate);
+      nextIncs = [inc, ...increments];
+      setIncrements(nextIncs);
     } else if (record.actionType === 'تسوية وضع') {
       const setRecord: StatusSettlementRecord = {
         id: record.id,
@@ -443,9 +487,12 @@ export default function App() {
         createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
         createdAt: record.createdAt
       };
-      setSettlements((prev) => [setRecord, ...prev]);
-      handleUpdateEmployeeGrade(record.employeeId, record.newGrade, record.newIncrement, record.actionDate);
+      nextSetts = [setRecord, ...settlements];
+      setSettlements(nextSetts);
     }
+
+    // Recalculate employee current grade based on updated career timeline (Requirement 7)
+    syncEmployeeCareerStatus(record.employeeId, nextCareerRecords, nextPromos, nextIncs, nextSetts);
 
     logAction(
       'إضافة', 
@@ -456,7 +503,44 @@ export default function App() {
 
   const handleUpdateCareerRecord = (updatedRecord: CareerPromotionRecord) => {
     const prevRec = careerRecords.find((r) => r.id === updatedRecord.id);
-    setCareerRecords((prev) => prev.map((r) => (r.id === updatedRecord.id ? updatedRecord : r)));
+    const nextCareerRecords = careerRecords.map((r) => (r.id === updatedRecord.id ? updatedRecord : r));
+    setCareerRecords(nextCareerRecords);
+
+    const nextPromos = promotions.map((p) => p.id === updatedRecord.id ? {
+      ...p,
+      previousGrade: updatedRecord.previousGrade,
+      newGrade: updatedRecord.newGrade,
+      previousIncrement: updatedRecord.previousIncrement,
+      newIncrement: updatedRecord.newIncrement,
+      effectiveDate: updatedRecord.actionDate,
+      decisionDate: updatedRecord.decisionDate,
+      decisionNumber: updatedRecord.decisionNumber,
+      notes: updatedRecord.notes
+    } : p);
+    setPromotions(nextPromos);
+
+    const nextIncs = increments.map((i) => i.id === updatedRecord.id ? {
+      ...i,
+      previousGrade: updatedRecord.previousGrade,
+      newIncrement: updatedRecord.newIncrement,
+      effectiveDate: updatedRecord.actionDate,
+      decisionNumber: updatedRecord.decisionNumber,
+      notes: updatedRecord.notes
+    } : i);
+    setIncrements(nextIncs);
+
+    const nextSetts = settlements.map((s) => s.id === updatedRecord.id ? {
+      ...s,
+      grade: updatedRecord.newGrade,
+      effectiveDate: updatedRecord.actionDate,
+      decisionNumber: updatedRecord.decisionNumber,
+      notes: updatedRecord.notes
+    } : s);
+    setSettlements(nextSetts);
+
+    // Automatically recalculate employee current status upon edit (Requirement 6 & 7)
+    syncEmployeeCareerStatus(updatedRecord.employeeId, nextCareerRecords, nextPromos, nextIncs, nextSetts);
+
     logAction(
       'تعديل', 
       `تعديل السجل الوظيفي (${updatedRecord.actionType} - قرار: ${updatedRecord.decisionNumber}) للموظف ${updatedRecord.employeeName || updatedRecord.employeeId} (الدرجة: ${prevRec?.newGrade || ''} ← ${updatedRecord.newGrade} - علاوة: ${prevRec?.newIncrement || 0} ← ${updatedRecord.newIncrement})`, 
@@ -466,7 +550,20 @@ export default function App() {
 
   const handleDeleteCareerRecord = (recordId: string) => {
     const rec = careerRecords.find((r) => r.id === recordId);
-    setCareerRecords((prev) => prev.filter((r) => r.id !== recordId));
+    const nextCareerRecords = careerRecords.filter((r) => r.id !== recordId);
+    setCareerRecords(nextCareerRecords);
+
+    const nextPromos = promotions.filter((p) => p.id !== recordId);
+    setPromotions(nextPromos);
+    const nextIncs = increments.filter((i) => i.id !== recordId);
+    setIncrements(nextIncs);
+    const nextSetts = settlements.filter((s) => s.id !== recordId);
+    setSettlements(nextSetts);
+
+    if (rec) {
+      syncEmployeeCareerStatus(rec.employeeId, nextCareerRecords, nextPromos, nextIncs, nextSetts);
+    }
+
     logAction('حذف', `حذف سجل وظيفي (${rec?.actionType || recordId} - قرار: ${rec?.decisionNumber || '—'})`, rec?.employeeId);
   };
 
@@ -812,6 +909,9 @@ export default function App() {
         activeTab={activeTab}
         employeeCount={employees.length}
         onQuickBackup={handleQuickBackup}
+        employees={employees}
+        careerRecords={careerRecords}
+        onSelectEmployee={handleSelectEmployeeFromSearch}
       />
 
       {corruptionAlert && (
@@ -893,11 +993,16 @@ export default function App() {
               onDeleteQualification={handleDeleteQualification}
               onSaveEvaluation={handleSaveAnnualEvaluation}
               onDeleteEvaluation={handleDeleteAnnualEvaluation}
+              onAddCareerRecord={handleAddCareerRecord}
+              onUpdateCareerRecord={handleUpdateCareerRecord}
+              onDeleteCareerRecord={handleDeleteCareerRecord}
               onImportComplete={handleImportMigrationResult}
               onNavigateToTab={(t) => setActiveTab(t as any)}
               currentUser={currentUser?.fullName || currentUser?.displayName || currentUser?.username || 'المستخدم الحالي'}
               generalManagerName={settings.generalManagerName || 'نجيب صالح سالم'}
               officialLogoUrl={settings.officialLogoUrl}
+              selectedEmployeeId={selectedEmployeeForProfileId}
+              onClearSelectedEmployee={() => setSelectedEmployeeForProfileId(null)}
             />
           )}
 
@@ -1033,8 +1138,19 @@ export default function App() {
               employees={employees}
               procedures={generalProcedures}
               increments={increments}
+              careerRecords={careerRecords}
+              promotions={promotions}
+              settlements={settlements}
+              secondments={secondments}
+              transfers={transfers}
+              leaves={leaves}
+              disciplinary={disciplinary}
+              resignations={resignations}
+              qualifications={qualifications}
+              evaluations={annualEvaluations}
               bulkOperations={bulkOperations}
               fullDatabase={currentFullDb}
+              users={users}
               currentUser={currentUser?.displayName || currentUser?.username || 'المستخدم الحالي'}
               onAddProcedure={(proc) => {
                 setGeneralProcedures((prev) => [proc, ...prev]);
@@ -1050,6 +1166,12 @@ export default function App() {
               onRecordBulkOperation={handleRecordBulkOperation}
               onRevertBulkOperation={handleRevertBulkOperation}
               onAddAuditLog={(log) => setLogs((prev) => [log, ...prev])}
+              onUpdateEmployee={handleUpdateEmployee}
+              onCleanupComplete={handleRestoreComplete}
+              onImportComplete={handleImportMigrationResult}
+              onQuickBackup={handleQuickBackup}
+              onOpenBackupModal={() => setIsBackupModalOpen(true)}
+              onNavigateToTab={(tabName) => setActiveTab(tabName as any)}
             />
           )}
 

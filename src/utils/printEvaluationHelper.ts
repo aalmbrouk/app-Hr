@@ -1,5 +1,6 @@
 import { AnnualPerformanceEvaluation } from '../types';
 import { EVALUATION_CATEGORIES, EVALUATION_RATING_GUIDE } from './evaluationUtils';
+import { formatDateDisplay } from './dateUtils';
 
 /**
  * Generates the clean, standalone HTML for an Annual Performance Evaluation (A4 Portrait)
@@ -271,9 +272,9 @@ export function generateEvaluationPrintHtml(
         </tr>
         <tr>
           <td style="background: #f8fafc; font-weight: bold;">الدرجة الحالية:</td>
-          <td style="font-weight: bold;">${evaluation.currentGrade || '...........................................'}</td>
+          <td style="font-weight: bold;">${evaluation.currentGrade === 'تحتاج إلى مراجعة' ? '<span style="color: #b91c1c; font-weight: bold;">تحتاج إلى مراجعة</span>' : (evaluation.currentGrade || '...........................................')}</td>
           <td style="background: #f8fafc; font-weight: bold;">تاريخ نيلها:</td>
-          <td>${evaluation.gradeDate || '...........................................'}</td>
+          <td>${evaluation.currentGrade === 'تحتاج إلى مراجعة' || !evaluation.gradeDate ? (evaluation.currentGrade === 'تحتاج إلى مراجعة' ? 'تحتاج إلى مراجعة' : '...........................................') : (formatDateDisplay(evaluation.gradeDate) || evaluation.gradeDate)}</td>
           <td style="background: #f8fafc; font-weight: bold;">الجنسية:</td>
           <td>${evaluation.nationality || 'ليبي'}</td>
         </tr>

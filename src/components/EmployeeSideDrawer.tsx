@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { calculateEmployeeIncrementBreakdown } from '../utils/incrementUtils';
 import { formatDateDisplay } from '../utils/dateUtils';
+import { getGenderFromEmployee } from '../utils/nationalIdUtils';
 import { 
   X, 
   User, 
@@ -123,10 +124,10 @@ export const EmployeeSideDrawer: React.FC<EmployeeSideDrawerProps> = ({
     generalProcedures
   );
 
-  const employeeLeaves = leaves.filter((l) => l.employeeId === employee.id);
-  const employeePromos = promotions.filter((p) => p.employeeId === employee.id);
-  const employeeSettles = settlements.filter((s) => s.employeeId === employee.id);
-  const employeeProcedures = generalProcedures.filter((g) => g.employeeId === employee.id);
+  const employeeLeaves = (leaves || []).filter((l) => l.employeeId === employee.id);
+  const employeePromos = (promotions || []).filter((p) => p.employeeId === employee.id);
+  const employeeSettles = (settlements || []).filter((s) => s.employeeId === employee.id);
+  const employeeProcedures = (generalProcedures || []).filter((g) => g.employeeId === employee.id);
 
   // Handle PDF upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,7 +348,7 @@ export const EmployeeSideDrawer: React.FC<EmployeeSideDrawerProps> = ({
                 </div>
                 <div className="p-2 bg-gray-50 rounded border border-gray-100">
                   <span className="text-gray-400 block text-[10px]">الجنس / الحالة:</span>
-                  <span className="font-medium text-gray-800">{employee.gender || 'ذكر'} ({employee.maritalStatus || 'متزوج'})</span>
+                  <span className="font-medium text-gray-800">{getGenderFromEmployee(employee)} ({employee.maritalStatus || 'متزوج'})</span>
                 </div>
                 <div className="p-2 bg-gray-50 rounded border border-gray-100">
                   <span className="text-gray-400 block text-[10px]">رقم الهاتف:</span>

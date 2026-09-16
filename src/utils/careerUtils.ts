@@ -5,7 +5,9 @@ import {
   CareerSummary,
   PromotionRecord,
   IncrementRecord,
-  StatusSettlementRecord
+  StatusSettlementRecord,
+  TransferRecord,
+  SecondmentRecord
 } from '../types';
 import { JOB_GRADES } from '../data/initialData';
 
@@ -146,12 +148,23 @@ export function normalizeCareerActionType(type?: string): CareerActionType {
     return 'تحويل من اللائحة 418 إلى نظام الدرجات العامة';
   }
   if (trimmed === 'ندب على درجة' || trimmed === 'ندب وظيفي على درجة') return 'ندب على درجة';
+  if (trimmed.includes('تكليف') && (trimmed.includes('إنهاء') || trimmed.includes('انهاء'))) return 'إنهاء تكليف';
+  if (trimmed === 'إنهاء تكليف' || trimmed === 'انهاء تكليف') return 'إنهاء تكليف';
+  if (trimmed === 'تكليف' || trimmed === 'تكليف إداري' || trimmed === 'تكليف فني' || trimmed.startsWith('تكليف')) return 'تكليف';
+  if (trimmed === 'انتهاء الندب' || trimmed === 'انهاء الندب' || trimmed === 'إنهاء الندب') return 'انتهاء الندب';
+  if (trimmed === 'العودة من الندب' || trimmed === 'عودة من الندب') return 'العودة من الندب';
+  if (trimmed === 'ندب' || trimmed === 'ندب خارجي' || trimmed === 'ندب داخلي') return 'ندب';
+  if (trimmed === 'نقل' || trimmed === 'نقل داخلي' || trimmed === 'نقل موظف') return 'نقل';
+  if (trimmed === 'تغيير مكان العمل' || trimmed === 'تغيير موقع العمل' || trimmed === 'مكان العمل') return 'تغيير مكان العمل';
+  if (trimmed === 'تغيير المسمى الوظيفي' || trimmed === 'تعديل المسمى الوظيفي' || trimmed === 'المسمى الوظيفي') return 'تغيير المسمى الوظيفي';
+  if (trimmed === 'إعارة / نقل خارجي' || trimmed === 'إعارة' || trimmed === 'نقل خارجي') return 'إعارة / نقل خارجي';
+  if (trimmed === 'حركة وظيفية أخرى' || trimmed === 'إجراء وظيفي رسمي آخر') return 'حركة وظيفية أخرى';
   if (trimmed === 'ترقية' || trimmed === 'ترقية عادية' || trimmed === 'ترقية دورية') return 'ترقية';
   if (trimmed === 'علاوة دورية' || trimmed === 'علاوة سنوية' || trimmed === 'علاوة سنوية تلقائية' || trimmed === 'تلقائية' || trimmed === 'علاوة') return 'علاوة دورية';
   if (trimmed === 'ترقية استثنائية' || trimmed === 'استثنائية') return 'ترقية استثنائية';
   if (trimmed === 'تسوية وضع' || trimmed === 'تسوية وضع وظيفي' || trimmed === 'تسوية') return 'تسوية وضع';
   if (trimmed === 'تعيين' || trimmed === 'تعيين أصلي') return 'تعيين';
-  return 'ترقية';
+  return trimmed;
 }
 
 /**
@@ -188,6 +201,7 @@ export function getCareerActionMeta(actionType: CareerActionType | string) {
         description: 'ترقية وظيفية اعتيادية لاستيفاء المدة القانونية'
       };
     case 'علاوة دورية':
+    case 'علاوة سنوية':
       return {
         label: 'علاوة دورية',
         badgeColor: 'bg-blue-100 text-blue-900 border-blue-300',
@@ -222,6 +236,97 @@ export function getCareerActionMeta(actionType: CareerActionType | string) {
         textColor: 'text-slate-800',
         accentBorder: 'border-slate-600',
         description: 'التعيين والمباشرة الأولى بالدولة'
+      };
+    case 'تكليف':
+      return {
+        label: 'تكليف إداري / فني',
+        badgeColor: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+        dotColor: 'bg-indigo-600',
+        textColor: 'text-indigo-800',
+        accentBorder: 'border-indigo-600',
+        description: 'تكليف بمهام أو منصب وظيفي أو رئاسة قسم/وحدة'
+      };
+    case 'إنهاء تكليف':
+      return {
+        label: 'إنهاء تكليف',
+        badgeColor: 'bg-slate-100 text-slate-800 border-slate-300',
+        dotColor: 'bg-slate-500',
+        textColor: 'text-slate-700',
+        accentBorder: 'border-slate-500',
+        description: 'إنهاء تكليف وظيفي أو إداري رسمي'
+      };
+    case 'نقل':
+      return {
+        label: 'نقل وظيفي',
+        badgeColor: 'bg-cyan-100 text-cyan-900 border-cyan-300',
+        dotColor: 'bg-cyan-600',
+        textColor: 'text-cyan-800',
+        accentBorder: 'border-cyan-600',
+        description: 'نقل الموظف من إدارة/جهة إلى أخرى'
+      };
+    case 'تغيير مكان العمل':
+      return {
+        label: 'تغيير مكان العمل',
+        badgeColor: 'bg-sky-100 text-sky-900 border-sky-300',
+        dotColor: 'bg-sky-600',
+        textColor: 'text-sky-800',
+        accentBorder: 'border-sky-600',
+        description: 'تعديل مقر أو موقع أو فرع عمل الموظف'
+      };
+    case 'ندب':
+      return {
+        label: 'ندب',
+        badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+        dotColor: 'bg-emerald-600',
+        textColor: 'text-emerald-800',
+        accentBorder: 'border-emerald-600',
+        description: 'ندب الموظف للعمل لدى جهة أخرى'
+      };
+    case 'انتهاء الندب':
+      return {
+        label: 'انتهاء الندب',
+        badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        dotColor: 'bg-emerald-500',
+        textColor: 'text-emerald-700',
+        accentBorder: 'border-emerald-500',
+        description: 'انتهاء فترة الندب الرسمي لدى الجهة'
+      };
+    case 'العودة من الندب':
+      return {
+        label: 'العودة من الندب',
+        badgeColor: 'bg-teal-100 text-teal-900 border-teal-300',
+        dotColor: 'bg-teal-600',
+        textColor: 'text-teal-800',
+        accentBorder: 'border-teal-600',
+        description: 'مباشرة العمل بعد انتهاء الندب والعودة للجهة الأصلية'
+      };
+    case 'تغيير المسمى الوظيفي':
+      return {
+        label: 'تغيير المسمى الوظيفي',
+        badgeColor: 'bg-violet-100 text-violet-900 border-violet-300',
+        dotColor: 'bg-violet-600',
+        textColor: 'text-violet-800',
+        accentBorder: 'border-violet-600',
+        description: 'تعديل أو ترقية المسمى الوظيفي أو الوظيفة'
+      };
+    case 'إعارة / نقل خارجي':
+      return {
+        label: 'إعارة / نقل خارجي',
+        badgeColor: 'bg-orange-100 text-orange-900 border-orange-300',
+        dotColor: 'bg-orange-600',
+        textColor: 'text-orange-800',
+        accentBorder: 'border-orange-600',
+        description: 'إعارة أو نقل خارجي خارج الملاك الوظيفي'
+      };
+    case 'حركة وظيفية أخرى':
+    default:
+      return {
+        label: norm || 'حركة وظيفية',
+        badgeColor: 'bg-gray-100 text-gray-800 border-gray-300',
+        dotColor: 'bg-gray-600',
+        textColor: 'text-gray-800',
+        accentBorder: 'border-gray-600',
+        description: 'إجراء أو حركة وظيفية رسمية موثقة'
       };
   }
 }
@@ -370,17 +475,26 @@ export function getEmployeeCareerHistory(
   careerRecords: CareerPromotionRecord[] = [],
   promotions: PromotionRecord[] = [],
   increments: IncrementRecord[] = [],
-  settlements: StatusSettlementRecord[] = []
+  settlements: StatusSettlementRecord[] = [],
+  transfers: TransferRecord[] = [],
+  secondments: SecondmentRecord[] = []
 ): CareerPromotionRecord[] {
+  const safeCareerRecords = careerRecords || [];
+  const safePromotions = promotions || [];
+  const safeIncrements = increments || [];
+  const safeSettlements = settlements || [];
+  const safeTransfers = transfers || [];
+  const safeSecondments = secondments || [];
+
   // 1. Direct career records
-  const directRecords = careerRecords.filter((r) => r.employeeId === employeeId);
+  const directRecords = safeCareerRecords.filter((r) => r.employeeId === employeeId);
   const seenIds = new Set(directRecords.map((r) => r.id));
   const seenKeys = new Set(directRecords.map((r) => `${r.actionType}_${r.actionDate}_${r.decisionNumber}`));
 
   const synthesized: CareerPromotionRecord[] = [...directRecords];
 
   // 2. Synthesize from promotions if not already in careerRecords
-  promotions
+  safePromotions
     .filter((p) => p.employeeId === employeeId)
     .forEach((p) => {
       const key = `${p.promotionType === 'ترقية استثنائية' ? 'ترقية استثنائية' : 'ترقية'}_${p.effectiveDate || p.decisionDate}_${p.decisionNumber}`;
@@ -409,7 +523,7 @@ export function getEmployeeCareerHistory(
     });
 
   // 3. Synthesize from increments if not already in careerRecords
-  increments
+  safeIncrements
     .filter((i) => i.employeeId === employeeId)
     .forEach((i) => {
       const key = `علاوة دورية_${i.effectiveDate}_${i.decisionNumber}`;
@@ -438,7 +552,7 @@ export function getEmployeeCareerHistory(
     });
 
   // 4. Synthesize from settlements if not already in careerRecords
-  settlements
+  safeSettlements
     .filter((s) => s.employeeId === employeeId)
     .forEach((s) => {
       const key = `تسوية وضع_${s.effectiveDate}_${s.decisionNumber}`;
@@ -473,6 +587,68 @@ export function getEmployeeCareerHistory(
         });
       }
     });
+
+  // 5. Synthesize from transfers if not already in careerRecords
+  if (safeTransfers && safeTransfers.length > 0) {
+    safeTransfers
+      .filter((t) => t.employeeId === employeeId)
+      .forEach((t) => {
+        const key = `نقل_${t.effectiveDate}_${t.decisionNumber}`;
+        if (!seenIds.has(t.id) && !seenKeys.has(key)) {
+          seenIds.add(t.id);
+          seenKeys.add(key);
+          synthesized.push({
+            id: t.id,
+            employeeId: t.employeeId,
+            fileNumber: '',
+            employeeName: '',
+            actionType: 'نقل',
+            previousWorkLocation: t.previousDepartment,
+            newWorkLocation: t.newDepartment,
+            previousDepartment: t.previousDepartment,
+            newDepartment: t.newDepartment,
+            actionDate: t.effectiveDate || t.decisionDate || t.createdAt?.slice(0, 10) || '',
+            decisionDate: t.decisionDate || t.effectiveDate || '',
+            decisionNumber: t.decisionNumber || '',
+            issuingAuthority: 'وزارة الصحة / مصرف الدم المركزي',
+            notes: t.notes || t.reason || '',
+            createdBy: t.createdBy || 'النظام',
+            createdAt: t.createdAt || ''
+          });
+        }
+      });
+  }
+
+  // 6. Synthesize from secondments if not already in careerRecords
+  if (safeSecondments && safeSecondments.length > 0) {
+    safeSecondments
+      .filter((s) => s.employeeId === employeeId)
+      .forEach((s) => {
+        const key = `ندب_${s.startDate}_${s.decisionNumber}`;
+        if (!seenIds.has(s.id) && !seenKeys.has(key)) {
+          seenIds.add(s.id);
+          seenKeys.add(key);
+          synthesized.push({
+            id: s.id,
+            employeeId: s.employeeId,
+            fileNumber: '',
+            employeeName: '',
+            actionType: 'ندب',
+            secondmentEntity: s.assignedEntity,
+            secondmentType: 'محدد المدة',
+            startDate: s.startDate,
+            endDate: s.endDate,
+            actionDate: s.startDate || s.decisionDate || s.createdAt?.slice(0, 10) || '',
+            decisionDate: s.decisionDate || s.startDate || '',
+            decisionNumber: s.decisionNumber || '',
+            issuingAuthority: 'وزارة الصحة',
+            notes: s.notes || s.reason || '',
+            createdBy: s.createdBy || 'النظام',
+            createdAt: s.createdAt || ''
+          });
+        }
+      });
+  }
 
   // Sort chronologically (oldest to newest)
   return synthesized.sort((a, b) => {
@@ -510,6 +686,12 @@ export function calculateEmployeeCareerSummary(
   let lastPromotionDate: string | undefined;
   let lastAnnualIncrementDate: string | undefined;
 
+  let assignmentsCount = 0;
+  let transfersCount = 0;
+  let secondmentsCount = 0;
+  let workLocationChangesCount = 0;
+  let jobTitleChangesCount = 0;
+
   // Process history chronologically
   history.forEach((rec) => {
     const norm = normalizeCareerActionType(rec.actionType);
@@ -518,7 +700,7 @@ export function calculateEmployeeCareerSummary(
     if (norm === 'ترقية') {
       promotionsCount++;
       if (date) lastPromotionDate = date;
-    } else if (norm === 'علاوة دورية') {
+    } else if (norm === 'علاوة دورية' || norm === 'علاوة سنوية') {
       annualIncrementsCount++;
       if (date) lastAnnualIncrementDate = date;
     } else if (norm === 'ترقية استثنائية') {
@@ -530,6 +712,16 @@ export function calculateEmployeeCareerSummary(
       transition418Count++;
     } else if (norm === 'ندب على درجة') {
       secondmentToGradeCount++;
+    } else if (norm === 'تكليف') {
+      assignmentsCount++;
+    } else if (norm === 'نقل' || norm === 'إعارة / نقل خارجي') {
+      transfersCount++;
+    } else if (norm === 'ندب') {
+      secondmentsCount++;
+    } else if (norm === 'تغيير مكان العمل') {
+      workLocationChangesCount++;
+    } else if (norm === 'تغيير المسمى الوظيفي') {
+      jobTitleChangesCount++;
     }
   });
 
@@ -544,6 +736,10 @@ export function calculateEmployeeCareerSummary(
     decisionNumber: latestRecord.decisionNumber
   } : undefined;
 
+  const currentWorkLoc = getCurrentWorkLocation(employee, careerRecords);
+  const currentAsgn = getCurrentAssignment(employee, careerRecords);
+  const currentDept = getCurrentDepartment(employee, careerRecords);
+
   return {
     promotionsCount,
     annualIncrementsCount,
@@ -551,12 +747,411 @@ export function calculateEmployeeCareerSummary(
     statusSettlementsCount,
     secondmentToGradeCount,
     transition418Count,
+    assignmentsCount,
+    transfersCount,
+    secondmentsCount,
+    workLocationChangesCount,
+    locationChangesCount: workLocationChangesCount,
+    jobTitleChangesCount,
+    currentWorkLocation: currentWorkLoc.location,
+    currentAssignmentTitle: currentAsgn.title,
+    currentAssignment: currentAsgn.title,
+    currentDepartmentName: currentDept.department,
+    currentDepartment: currentDept.department,
     lastPromotionDate: lastPromotionDate || employee.gradeEntryDate,
     lastAnnualIncrementDate: lastAnnualIncrementDate || employee.lastIncrementDate,
     currentGrade: employee.jobGrade,
     currentIncrement: employee.currentIncrement || 1,
     lastAction
   };
+}
+
+/**
+ * Resolves current work location based on employee file and chronological movements
+ */
+export function getCurrentWorkLocation(
+  employee: Employee,
+  careerRecords: CareerPromotionRecord[] = []
+): { location: string; isTemporary?: boolean; status: 'active' | 'base' | 'review_required'; warning?: string } {
+  const records = (careerRecords || [])
+    .filter(r => r.employeeId === employee.id)
+    .sort((a, b) => {
+      const tA = new Date(a.actionDate || a.decisionDate || a.createdAt || '').getTime() || 0;
+      const tB = new Date(b.actionDate || b.decisionDate || b.createdAt || '').getTime() || 0;
+      return tA - tB;
+    });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Check active secondments first
+  const secondmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return (norm === 'ندب' || norm === 'إعارة / نقل خارجي') && (r.actionDate || r.decisionDate || '') <= today;
+  });
+
+  const endSecondmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return (norm === 'انتهاء الندب' || norm === 'العودة من الندب') && (r.actionDate || r.decisionDate || '') <= today;
+  });
+
+  if (secondmentRecords.length > 0) {
+    const latestSecondment = secondmentRecords[secondmentRecords.length - 1];
+    const secDate = latestSecondment.actionDate || latestSecondment.decisionDate || '';
+    const latestEnd = endSecondmentRecords[endSecondmentRecords.length - 1];
+    const endDate = latestEnd ? (latestEnd.actionDate || latestEnd.decisionDate || '') : '';
+
+    const isStillSeconded = (!latestSecondment.endDate || latestSecondment.endDate >= today) && (!latestEnd || endDate < secDate);
+    if (isStillSeconded && latestSecondment.secondmentEntity) {
+      return {
+        location: latestSecondment.secondmentEntity,
+        isTemporary: true,
+        status: 'active',
+        warning: `منتدب حالياً لدى ${latestSecondment.secondmentEntity}`
+      };
+    }
+  }
+
+  // Work Location Changes and Transfers up to today
+  const locationMovements = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    const effDate = r.actionDate || r.decisionDate || '';
+    return effDate <= today && (
+      norm === 'تغيير مكان العمل' ||
+      norm === 'نقل' ||
+      norm === 'العودة من الندب' ||
+      !!r.newWorkLocation ||
+      !!r.workLocation
+    );
+  });
+
+  if (locationMovements.length > 0) {
+    const latest = locationMovements[locationMovements.length - 1];
+    const targetLoc = latest.newWorkLocation || latest.workLocation;
+    if (targetLoc && targetLoc.trim() !== '') {
+      return {
+        location: targetLoc.trim(),
+        status: 'active'
+      };
+    }
+  }
+
+  // Fallback to employee base location
+  const baseLocation = employee.workLocation || employee.hiringEntity || 'مصرف الدم المركزي المرج';
+  return {
+    location: baseLocation,
+    status: 'base'
+  };
+}
+
+/**
+ * Resolves current assignment based on employee file and chronological assignments
+ */
+export function getCurrentAssignment(
+  employee: Employee,
+  careerRecords: CareerPromotionRecord[] = []
+): { title: string; assignmentType?: string; startDate?: string; endDate?: string; status: 'active' | 'none' | 'ended' | 'review_required'; warning?: string } {
+  const records = (careerRecords || [])
+    .filter(r => r.employeeId === employee.id)
+    .sort((a, b) => {
+      const tA = new Date(a.actionDate || a.decisionDate || a.createdAt || '').getTime() || 0;
+      const tB = new Date(b.actionDate || b.decisionDate || b.createdAt || '').getTime() || 0;
+      return tA - tB;
+    });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const assignmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return norm === 'تكليف' || (!['إنهاء تكليف'].includes(norm) && !!r.assignmentTitle);
+  });
+
+  const endAssignmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return norm === 'إنهاء تكليف';
+  });
+
+  if (assignmentRecords.length === 0) {
+    if (employee.currentAssignment && employee.currentAssignment.trim() !== '' && employee.currentAssignment !== 'بدون تكليف' && employee.currentAssignment !== 'غير مكلف') {
+      return {
+        title: employee.currentAssignment,
+        status: 'active'
+      };
+    }
+    return {
+      title: 'بدون تكليف (غير مكلف)',
+      status: 'none'
+    };
+  }
+
+  // Find active assignments:
+  const activeAssignments: CareerPromotionRecord[] = [];
+
+  assignmentRecords.forEach(asgn => {
+    const sDate = asgn.startDate || asgn.actionDate || asgn.decisionDate || '';
+    if (sDate > today) return; // future assignment
+
+    if (asgn.endDate && asgn.endDate < today) {
+      return; // ended in past
+    }
+
+    // Check if ended by an explicit end record
+    const isEnded = endAssignmentRecords.some(endRec => {
+      const endDate = endRec.actionDate || endRec.decisionDate || '';
+      if (endDate > today) return false;
+      if (endRec.linkedAssignmentId && endRec.linkedAssignmentId === asgn.id) return true;
+      if (endRec.assignmentTitle && asgn.assignmentTitle && endRec.assignmentTitle.trim() === asgn.assignmentTitle.trim() && endDate >= sDate) return true;
+      if (!endRec.linkedAssignmentId && !endRec.assignmentTitle && endDate >= sDate) return true;
+      return false;
+    });
+
+    if (!isEnded) {
+      activeAssignments.push(asgn);
+    }
+  });
+
+  if (activeAssignments.length === 0) {
+    return {
+      title: 'لا يوجد تكليف حالي',
+      status: 'ended'
+    };
+  }
+
+  if (activeAssignments.length > 1) {
+    // Multiple conflicting open assignments without end dates
+    const latest = activeAssignments[activeAssignments.length - 1];
+    return {
+      title: latest.assignmentTitle || 'تكليف متعدد',
+      assignmentType: latest.assignmentType,
+      startDate: latest.startDate || latest.actionDate,
+      endDate: latest.endDate,
+      status: 'review_required',
+      warning: 'تعدد تكليفات متزامنة مفتوحة بدون إنهاء — تحتاج إلى مراجعة'
+    };
+  }
+
+  const current = activeAssignments[0];
+  return {
+    title: current.assignmentTitle || 'تكليف رسمي',
+    assignmentType: current.assignmentType,
+    startDate: current.startDate || current.actionDate,
+    endDate: current.endDate,
+    status: 'active'
+  };
+}
+
+/**
+ * Resolves current department based on employee file and chronological movements
+ */
+export function getCurrentDepartment(
+  employee: Employee,
+  careerRecords: CareerPromotionRecord[] = []
+): { department: string; status: 'active' | 'base'; warning?: string } {
+  const records = (careerRecords || [])
+    .filter(r => r.employeeId === employee.id)
+    .sort((a, b) => {
+      const tA = new Date(a.actionDate || a.decisionDate || a.createdAt || '').getTime() || 0;
+      const tB = new Date(b.actionDate || b.decisionDate || b.createdAt || '').getTime() || 0;
+      return tA - tB;
+    });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const deptMovements = records.filter(r => {
+    const effDate = r.actionDate || r.decisionDate || '';
+    return effDate <= today && (!!r.newDepartment || !!r.department);
+  });
+
+  if (deptMovements.length > 0) {
+    const latest = deptMovements[deptMovements.length - 1];
+    const dept = latest.newDepartment || latest.department;
+    if (dept && dept.trim() !== '') {
+      return {
+        department: dept.trim(),
+        status: 'active'
+      };
+    }
+  }
+
+  return {
+    department: employee.department || 'غير محدد',
+    status: 'base'
+  };
+}
+
+/**
+ * Resolves historical work location at a specific date
+ */
+export function getWorkLocationAtDate(
+  employee: Employee,
+  careerRecords: CareerPromotionRecord[] = [],
+  targetDate: string
+): { location: string; status: 'active' | 'base' | 'review_required'; warning?: string } {
+  if (!targetDate) return getCurrentWorkLocation(employee, careerRecords);
+
+  const records = (careerRecords || [])
+    .filter(r => r.employeeId === employee.id)
+    .filter(r => (r.actionDate || r.decisionDate || '') <= targetDate)
+    .sort((a, b) => {
+      const tA = new Date(a.actionDate || a.decisionDate || a.createdAt || '').getTime() || 0;
+      const tB = new Date(b.actionDate || b.decisionDate || b.createdAt || '').getTime() || 0;
+      return tA - tB;
+    });
+
+  // Secondment check at targetDate
+  const secondmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return (norm === 'ندب' || norm === 'إعارة / نقل خارجي') && (r.actionDate || r.decisionDate || '') <= targetDate;
+  });
+  const endSecondmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return (norm === 'انتهاء الندب' || norm === 'العودة من الندب') && (r.actionDate || r.decisionDate || '') <= targetDate;
+  });
+
+  if (secondmentRecords.length > 0) {
+    const latestSec = secondmentRecords[secondmentRecords.length - 1];
+    const secDate = latestSec.actionDate || latestSec.decisionDate || '';
+    const latestEnd = endSecondmentRecords[endSecondmentRecords.length - 1];
+    const endDate = latestEnd ? (latestEnd.actionDate || latestEnd.decisionDate || '') : '';
+
+    const isStillSeconded = (!latestSec.endDate || latestSec.endDate >= targetDate) && (!latestEnd || endDate < secDate);
+    if (isStillSeconded && latestSec.secondmentEntity) {
+      return {
+        location: latestSec.secondmentEntity,
+        status: 'active',
+        warning: `منتدب في هذا التاريخ لدى ${latestSec.secondmentEntity}`
+      };
+    }
+  }
+
+  // Work location changes up to targetDate
+  const locationMovements = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return (
+      norm === 'تغيير مكان العمل' ||
+      norm === 'نقل' ||
+      norm === 'العودة من الندب' ||
+      !!r.newWorkLocation ||
+      !!r.workLocation
+    );
+  });
+
+  if (locationMovements.length > 0) {
+    const latest = locationMovements[locationMovements.length - 1];
+    const targetLoc = latest.newWorkLocation || latest.workLocation;
+    if (targetLoc && targetLoc.trim() !== '') {
+      return {
+        location: targetLoc.trim(),
+        status: 'active'
+      };
+    }
+  }
+
+  return {
+    location: employee.workLocation || employee.hiringEntity || 'مصرف الدم المركزي المرج',
+    status: 'base'
+  };
+}
+
+/**
+ * Resolves historical assignment at a specific date
+ */
+export function getAssignmentAtDate(
+  employee: Employee,
+  careerRecords: CareerPromotionRecord[] = [],
+  targetDate: string
+): { title: string; assignmentType?: string; startDate?: string; endDate?: string; status: 'active' | 'none' | 'ended' | 'review_required'; warning?: string } {
+  if (!targetDate) return getCurrentAssignment(employee, careerRecords);
+
+  const records = (careerRecords || [])
+    .filter(r => r.employeeId === employee.id)
+    .filter(r => (r.actionDate || r.decisionDate || '') <= targetDate)
+    .sort((a, b) => {
+      const tA = new Date(a.actionDate || a.decisionDate || a.createdAt || '').getTime() || 0;
+      const tB = new Date(b.actionDate || b.decisionDate || b.createdAt || '').getTime() || 0;
+      return tA - tB;
+    });
+
+  const assignmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return norm === 'تكليف' || (!['إنهاء تكليف'].includes(norm) && !!r.assignmentTitle);
+  });
+
+  const endAssignmentRecords = records.filter(r => {
+    const norm = normalizeCareerActionType(r.actionType);
+    return norm === 'إنهاء تكليف';
+  });
+
+  const activeAssignments = assignmentRecords.filter(asgn => {
+    const sDate = asgn.startDate || asgn.actionDate || asgn.decisionDate || '';
+    if (sDate > targetDate) return false;
+    if (asgn.endDate && asgn.endDate < targetDate) return false;
+
+    const isEnded = endAssignmentRecords.some(endRec => {
+      const eDate = endRec.actionDate || endRec.decisionDate || '';
+      if (eDate > targetDate) return false;
+      if (endRec.linkedAssignmentId && endRec.linkedAssignmentId === asgn.id) return true;
+      if (endRec.assignmentTitle && asgn.assignmentTitle && endRec.assignmentTitle.trim() === asgn.assignmentTitle.trim() && eDate >= sDate) return true;
+      if (!endRec.linkedAssignmentId && !endRec.assignmentTitle && eDate >= sDate) return true;
+      return false;
+    });
+
+    return !isEnded;
+  });
+
+  if (activeAssignments.length === 0) {
+    return {
+      title: 'بدون تكليف في هذا التاريخ',
+      status: 'none'
+    };
+  }
+
+  if (activeAssignments.length > 1) {
+    const latest = activeAssignments[activeAssignments.length - 1];
+    return {
+      title: latest.assignmentTitle || 'تكليف متعدد',
+      assignmentType: latest.assignmentType,
+      startDate: latest.startDate || latest.actionDate,
+      endDate: latest.endDate,
+      status: 'review_required',
+      warning: 'تعدد تكليفات متزامنة في هذا التاريخ — تحتاج إلى مراجعة'
+    };
+  }
+
+  const current = activeAssignments[0];
+  return {
+    title: current.assignmentTitle || 'تكليف رسمي',
+    assignmentType: current.assignmentType,
+    startDate: current.startDate || current.actionDate,
+    endDate: current.endDate,
+    status: 'active'
+  };
+}
+
+/**
+ * Validates movement dates and logical integrity
+ */
+export function validateCareerMovementDates(movement: Partial<CareerPromotionRecord>): {
+  isValid: boolean;
+  warning?: string;
+  error?: string;
+} {
+  if (movement.startDate && movement.endDate) {
+    if (movement.endDate < movement.startDate) {
+      return {
+        isValid: false,
+        error: 'تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء.'
+      };
+    }
+  }
+
+  if (!movement.actionDate && !movement.decisionDate) {
+    return {
+      isValid: false,
+      error: 'يجب تحديد تاريخ النفاذ أو تاريخ القرار.'
+    };
+  }
+
+  return { isValid: true };
 }
 
 /**

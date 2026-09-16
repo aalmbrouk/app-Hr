@@ -11,8 +11,8 @@ interface TransfersViewProps {
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
-  employees,
-  transfers,
+  employees = [],
+  transfers = [],
   onAddTransfer,
   onUpdateEmployeeDept
 }) => {

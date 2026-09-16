@@ -98,7 +98,7 @@ interface ReportsViewProps {
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
-  employees,
+  employees = [],
   leaves = [],
   promotions = [],
   increments = [],

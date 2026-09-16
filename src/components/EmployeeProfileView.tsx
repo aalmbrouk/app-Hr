@@ -15,8 +15,11 @@ import {
   AnnualPerformanceEvaluation,
   AppointmentSalarySystem,
   EmploymentStatus,
-  AssignmentCategory
+  AssignmentCategory,
+  Gender,
+  GenderSource
 } from '../types';
+import { getGenderFromNationalId, normalizeNationalId, getGenderFromEmployee } from '../utils/nationalIdUtils';
 import { calculateEmployeeIncrementBreakdown } from '../utils/incrementUtils';
 import { formatDateDisplay } from '../utils/dateUtils';
 import { getCareerActionMeta, getEmployeeCareerHistory, calculateEmployeeCareerSummary } from '../utils/careerUtils';
@@ -60,7 +63,11 @@ import {
   Save,
   Search,
   SlidersHorizontal,
-  FileDown
+  FileDown,
+  Lock,
+  Filter,
+  ArrowUpDown,
+  AlertTriangle
 } from 'lucide-react';
 import { EmployeeDossierPrintModal } from './EmployeeDossierPrintModal';
 import { EmployeeCareerReportModal } from './EmployeeCareerReportModal';
@@ -68,6 +75,7 @@ import { QualificationRecordModal } from './QualificationRecordModal';
 import { OfficialQualificationsPrintModal } from './OfficialQualificationsPrintModal';
 import { OfficialPerformanceEvaluationModal } from './evaluations/OfficialPerformanceEvaluationModal';
 import { EmployeePrintCard } from './EmployeePrintCard';
+import { CareerActionModal } from './CareerActionModal';
 
 export type ProfileTabKey = 
   | 'summary'
@@ -85,6 +93,7 @@ export type ProfileTabKey =
 
 interface EmployeeProfileViewProps {
   employee: Employee;
+  employees?: Employee[];
   leaves?: LeaveTransaction[];
   increments?: IncrementRecord[];
   promotions?: PromotionRecord[];
@@ -108,6 +117,8 @@ interface EmployeeProfileViewProps {
   onSaveEvaluation?: (evaluation: AnnualPerformanceEvaluation) => void;
   onDeleteEvaluation?: (id: string) => void;
   onAddCareerRecord?: (record: CareerPromotionRecord) => void;
+  onUpdateCareerRecord?: (record: CareerPromotionRecord) => void;
+  onDeleteCareerRecord?: (id: string) => void;
   currentUser?: string;
   generalManagerName?: string;
   officialLogoUrl?: string;
@@ -115,6 +126,7 @@ interface EmployeeProfileViewProps {
 
 export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
   employee,
+  employees = [],
   leaves = [],
   increments = [],
   promotions = [],
@@ -138,6 +150,8 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
   onSaveEvaluation,
   onDeleteEvaluation,
   onAddCareerRecord,
+  onUpdateCareerRecord,
+  onDeleteCareerRecord,
   currentUser = 'المستخدم الحالي',
   generalManagerName = 'نجيب صالح سالم',
   officialLogoUrl
@@ -166,7 +180,23 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
 
   // Section-Level Editing States
   const [isEditingPersonal, setIsEditingPersonal] = useState<boolean>(false);
-  const [personalForm, setPersonalForm] = useState({
+  const [personalForm, setPersonalForm] = useState<{
+    fullName: string;
+    nationalId: string;
+    passportNumber: string;
+    nationality: string;
+    documentType: string;
+    motherName: string;
+    birthDate: string;
+    birthPlace: string;
+    gender: Gender;
+    maritalStatus: string;
+    qualification: string;
+    specialization: string;
+    university: string;
+    graduationYear: string;
+    educationType: string;
+  }>({
     fullName: employee.fullName || '',
     nationalId: employee.nationalId || '',
     passportNumber: employee.passportNumber || '',
@@ -245,21 +275,56 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
     .filter((e) => e.employeeId === employee.id)
     .sort((a, b) => b.evaluationYear - a.evaluationYear);
 
-  const employeeLeaves = leaves.filter((l) => l.employeeId === employee.id);
-  const employeeQuals = qualifications.filter((q) => q.employeeId === employee.id);
-  const employeeTransfers = transfers.filter((t) => t.employeeId === employee.id);
-  const employeeSecondments = secondments.filter((s) => s.employeeId === employee.id);
-  const employeeDisciplinary = disciplinary.filter((d) => d.employeeId === employee.id);
-  const employeeProcedures = generalProcedures.filter((p) => p.employeeId === employee.id);
-  const employeeResignations = resignations.filter((r) => r.employeeId === employee.id);
+  const employeeLeaves = (leaves || []).filter((l) => l.employeeId === employee.id);
+  const employeeQuals = (qualifications || []).filter((q) => q.employeeId === employee.id);
+  const employeeTransfers = (transfers || []).filter((t) => t.employeeId === employee.id);
+  const employeeSecondments = (secondments || []).filter((s) => s.employeeId === employee.id);
+  const employeeDisciplinary = (disciplinary || []).filter((d) => d.employeeId === employee.id);
+  const employeeProcedures = (generalProcedures || []).filter((p) => p.employeeId === employee.id);
+  const employeeResignations = (resignations || []).filter((r) => r.employeeId === employee.id);
 
   const fullCareerHistory = getEmployeeCareerHistory(
     employee.id,
     careerRecords,
     promotions,
     increments,
-    settlements
+    settlements,
+    transfers,
+    secondments
   );
+
+  // Career History Timeline State (Requirement 5, 6, 14)
+  const [isCareerModalOpen, setIsCareerModalOpen] = useState<boolean>(false);
+  const [editingCareerRecord, setEditingCareerRecord] = useState<CareerPromotionRecord | null>(null);
+  const [careerSortOrder, setCareerSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [careerTypeFilter, setCareerTypeFilter] = useState<string>('الكل');
+  const [careerSearchQuery, setCareerSearchQuery] = useState<string>('');
+
+  const processedCareerHistory = useMemo(() => {
+    let list = [...fullCareerHistory];
+    if (careerTypeFilter !== 'الكل') {
+      list = list.filter((r) => r.actionType === careerTypeFilter || (r.movementType && r.movementType === careerTypeFilter));
+    }
+    if (careerSearchQuery.trim()) {
+      const q = careerSearchQuery.toLowerCase().trim();
+      list = list.filter((r) => 
+        (r.decisionNumber && r.decisionNumber.toLowerCase().includes(q)) ||
+        (r.issuingAuthority && r.issuingAuthority.toLowerCase().includes(q)) ||
+        (r.newGrade && r.newGrade.toLowerCase().includes(q)) ||
+        (r.previousGrade && r.previousGrade.toLowerCase().includes(q)) ||
+        (r.notes && r.notes.toLowerCase().includes(q)) ||
+        (r.reason && r.reason.toLowerCase().includes(q)) ||
+        (r.actionType && r.actionType.toLowerCase().includes(q))
+      );
+    }
+    return list.sort((a, b) => {
+      const dateA = a.actionDate || a.effectiveDate || a.decisionDate || a.createdAt || '';
+      const dateB = b.actionDate || b.effectiveDate || b.decisionDate || b.createdAt || '';
+      return careerSortOrder === 'newest'
+        ? dateB.localeCompare(dateA)
+        : dateA.localeCompare(dateB);
+    });
+  }, [fullCareerHistory, careerTypeFilter, careerSearchQuery, careerSortOrder]);
 
   const careerSummary = calculateEmployeeCareerSummary(
     employee,
@@ -283,15 +348,35 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
     setTimeout(() => setSaveFeedback(null), 3500);
   };
 
+  // Career Movement Delete Handler (Requirement 4 & 14)
+  const handleDeleteCareerMovement = (recordId: string, movementName: string) => {
+    if (window.confirm(`هل أنت متأكد من رغبتك في حذف هذا القيد من السيرة الوظيفية (${movementName})؟\nسيتم تلقائياً إعادة احتساب الدرجة الحالية للوضع الصحيح وحفظ التغييرات فوراً.`)) {
+      if (onDeleteCareerRecord) {
+        onDeleteCareerRecord(recordId);
+        triggerToast('تم حذف الحركة الوظيفية وإعادة احتساب الوضع الحالي بنجاح.');
+      }
+    }
+  };
+
   // Section Save Handlers
   const handleSavePersonal = () => {
     if (!personalForm.fullName.trim()) {
       alert('يرجى كتابة اسم الموظف كاملاً.');
       return;
     }
+
+    const cleanNatId = normalizeNationalId(personalForm.nationalId);
+    let resolvedGender: Gender = personalForm.gender || 'ذكر';
+    if (cleanNatId.startsWith('1')) resolvedGender = 'ذكر';
+    else if (cleanNatId.startsWith('2')) resolvedGender = 'أنثى';
+
+    const isLibyan = (personalForm.nationality || '').trim() === 'ليبي';
+
     const updated: Employee = {
       ...employee,
       ...personalForm,
+      nationalId: isLibyan ? cleanNatId : (personalForm.nationalId || ''),
+      gender: resolvedGender,
       updatedAt: new Date().toISOString()
     };
     onUpdateEmployee(updated);
@@ -420,7 +505,7 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
     { key: 'personal', label: 'البيانات الشخصية', icon: User },
     { key: 'job', label: 'البيانات الوظيفية', icon: Briefcase },
     { key: 'grade_increments', label: 'الدرجة والعلاوات', icon: Award },
-    { key: 'promotions', label: 'بيانات الترقيات الوظيفية', icon: TrendingUp, count: fullCareerHistory.length },
+    { key: 'promotions', label: 'السيرة الوظيفية', icon: TrendingUp, count: fullCareerHistory.length },
     { key: 'leaves', label: 'الإجازات', icon: Calendar, count: employeeLeaves.length },
     { key: 'qualifications', label: 'المؤهلات والدورات', icon: GraduationCap, count: employeeQuals.length + (employee.qualification ? 1 : 0) },
     { key: 'procedures', label: 'الإجراءات الوظيفية', icon: Zap, count: employeeProcedures.length },
@@ -919,8 +1004,15 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
               </div>
 
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
-                <span className="text-gray-500 font-bold block">الجنس / الحالة الاجتماعية:</span>
-                <span className="font-semibold text-gray-900">{employee.gender || 'ذكر'} - {employee.maritalStatus || 'أعزب'}</span>
+                <span className="text-gray-500 font-bold block">الجنس:</span>
+                <span className="font-bold text-gray-900">
+                  {employee.gender === 'أنثى' ? 'الجنس: أنثى' : 'الجنس: ذكر'}
+                </span>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
+                <span className="text-gray-500 font-bold block">الحالة الاجتماعية:</span>
+                <span className="font-semibold text-gray-900">{employee.maritalStatus || '—'}</span>
               </div>
 
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
@@ -983,14 +1075,53 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
                   type="text"
                   value={personalForm.nationality === 'ليبي' ? personalForm.nationalId : (personalForm.passportNumber || personalForm.nationalId)}
                   onChange={(e) => {
+                    const val = e.target.value;
+                    const cleanId = normalizeNationalId(val);
+                    const firstDigit = cleanId.charAt(0);
+                    let newGender = personalForm.gender;
+                    if (firstDigit === '1') newGender = 'ذكر';
+                    else if (firstDigit === '2') newGender = 'أنثى';
+
                     if (personalForm.nationality === 'ليبي') {
-                      setPersonalForm({ ...personalForm, nationalId: e.target.value });
+                      setPersonalForm({
+                        ...personalForm,
+                        nationalId: cleanId,
+                        gender: newGender
+                      });
                     } else {
-                      setPersonalForm({ ...personalForm, passportNumber: e.target.value, nationalId: e.target.value });
+                      setPersonalForm({
+                        ...personalForm,
+                        passportNumber: val,
+                        nationalId: val,
+                        gender: newGender
+                      });
                     }
                   }}
                   className="w-full p-2 border border-gray-300 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-red-600 outline-none"
                 />
+              </div>
+
+              {/* Gender: Automatic from National ID */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">الجنس</label>
+                <div className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 text-xs font-bold text-gray-800">
+                  {personalForm.gender === 'أنثى' ? 'الجنس: أنثى' : 'الجنس: ذكر'}
+                </div>
+              </div>
+
+              {/* Marital Status */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">الحالة الاجتماعية</label>
+                <select
+                  value={personalForm.maritalStatus}
+                  onChange={(e) => setPersonalForm({ ...personalForm, maritalStatus: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-red-600 outline-none"
+                >
+                  <option value="أعزب">أعزب</option>
+                  <option value="متزوج">متزوج</option>
+                  <option value="مطلق">مطلق</option>
+                  <option value="أرمل">أرمل</option>
+                </select>
               </div>
 
               <div>
@@ -1420,6 +1551,14 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
                     <span className="text-gray-500 font-bold">تاريخ التعيين الأساسي:</span>
                     <span className="font-mono font-semibold text-gray-900">{formatDateDisplay(employee.hireDate) || '—'}</span>
                   </div>
+                  <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-gray-500 font-bold">جهة التعيين / التكليف:</span>
+                    <span className="font-bold text-slate-800">{employee.hiringEntity || 'وزارة الصحة'}</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-gray-500 font-bold">تاريخ المباشرة / التوجيه:</span>
+                    <span className="font-mono font-semibold text-gray-900">{formatDateDisplay(employee.directingDate || employee.bloodBankStartDate || employee.hireDate) || '—'}</span>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3 text-xs">
@@ -1565,73 +1704,427 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
         </div>
       )}
 
-      {/* TAB 5: PROMOTIONS */}
+      {/* TAB 5: PROMOTIONS & CAREER HISTORY TIMELINE */}
       {activeTab === 'promotions' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
-            <div>
-              <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-red-700" />
-                <span>بيانات الترقيات والتدرج الوظيفي</span>
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                السجل الزمني لكافة الترقيات والتسويات وتغييرات الدرجة للموظف.
-              </p>
+        <div className="space-y-6">
+          
+          {/* PART 1: ORIGINAL APPOINTMENT DATA (STATIC) */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200">
+                  <Lock className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900">1. بيانات التعيين الأول (البيانات التأسيسية الأصلية)</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                      بيانات ثابتة
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    الحالة الأصلية للموظف عند تعيينه في الدولة؛ تظل ثابتة ومحمية ولا تتغير بالحركات الوظيفية اللاحقة.
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-left">
+                <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
+                  رقم الملف: {employee.jobNumber || '—'}
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsCareerReportOpen(true)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>طباعة تقرير التدرج</span>
-              </button>
+            {/* 6 Core Static Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+              {/* 1. تاريخ التعيين الأول */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">تاريخ التعيين الأول (الأساسي):</span>
+                <span className="text-slate-900 font-mono font-black text-sm">
+                  {formatDateDisplay(employee.hireDate) || '—'}
+                </span>
+              </div>
+
+              {/* 2. الدرجة المعين عليها */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">الدرجة المعين عليها:</span>
+                <span className="text-amber-900 font-black text-sm">
+                  {employee.appointmentGrade || '—'}
+                </span>
+              </div>
+
+              {/* 3. عدد العلاوات عند التعيين */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">عدد العلاوات عند التعيين:</span>
+                <span className="text-slate-900 font-mono font-black text-sm">
+                  {employee.appointmentIncrements ?? 0} علاوة
+                </span>
+              </div>
+
+              {/* 4. نظام المرتبات المعين عليه */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">نظام المرتبات المعين عليه:</span>
+                <span className="text-slate-900 font-bold text-xs">
+                  {employee.appointmentSalarySystem || 'جدول مرتبات القانون 15'}
+                </span>
+              </div>
+
+              {/* 5. جهة التعيين / جهة التكليف */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">جهة التعيين / جهة التكليف:</span>
+                <span className="text-slate-900 font-bold text-xs">
+                  {employee.hiringEntity || 'وزارة الصحة'}
+                </span>
+              </div>
+
+              {/* 6. تاريخ المباشرة / تاريخ التوجيه */}
+              <div className="bg-slate-50/75 p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-slate-500 font-bold mb-1">تاريخ المباشرة / تاريخ التوجيه:</span>
+                <span className="text-slate-900 font-mono font-black text-sm">
+                  {formatDateDisplay(employee.directingDate || employee.bloodBankStartDate || employee.hireDate) || '—'}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="w-full text-right text-xs border-collapse">
-              <thead className="bg-gray-100 font-bold text-gray-700 border-b border-gray-200">
-                <tr>
-                  <th className="p-2.5 w-10 text-center">#</th>
-                  <th className="p-2.5 w-24">التاريخ</th>
-                  <th className="p-2.5 w-28">نوع الإجراء</th>
-                  <th className="p-2.5 w-28">الدرجة السابقة</th>
-                  <th className="p-2.5 w-28">الدرجة الجديدة</th>
-                  <th className="p-2.5 w-20 text-center">العلاوات</th>
-                  <th className="p-2.5 w-28">رقم القرار</th>
-                  <th className="p-2.5">ملاحظات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {fullCareerHistory.length === 0 ? (
+          {/* PART 2: CAREER HISTORY TIMELINE (DYNAMIC) */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-5 space-y-4">
+            
+            {/* Header & Main Actions */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center border border-red-200">
+                  <TrendingUp className="w-4 h-4 text-red-700" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-gray-900">2. السيرة الوظيفية والتدرج الزمني للحركات</h3>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      {fullCareerHistory.length} حركة مسجلة
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    الدرجة الحالية والوضع الوظيفي يُحتسبان تلقائياً من آخر حركة وظيفية نافذة حسب تاريخ النفاذ.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons: Add Movement (+) & Print */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCareerRecord(null);
+                    setIsCareerModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-black transition flex items-center gap-1.5 shadow-sm hover:shadow cursor-pointer"
+                  title="إضافة حركة ترقية أو علاوة أو تسوية وضع وظيفي جديدة للموظف"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>+ إضافة حركة وظيفية</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCareerReportOpen(true)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="طباعة التقرير الرسمي لبيانات التدرج الوظيفي للموظف"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>طباعة تقرير السيرة</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter, Search & Sorting Bar */}
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
+              
+              <div className="flex flex-wrap items-center gap-2 flex-1">
+                {/* Search Input */}
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
+                  <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={careerSearchQuery}
+                    onChange={(e) => setCareerSearchQuery(e.target.value)}
+                    placeholder="بحث برقم القرار، الدرجة، الجهة..."
+                    className="w-full pr-8 pl-2 py-1.5 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  />
+                  {careerSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCareerSearchQuery('')}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Movement Type Filter */}
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <select
+                    value={careerTypeFilter}
+                    onChange={(e) => setCareerTypeFilter(e.target.value)}
+                    className="p-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-emerald-600"
+                  >
+                    <option value="الكل">كافة أنواع الحركات ({fullCareerHistory.length})</option>
+                    <option value="ترقية">ترقية عادية</option>
+                    <option value="ترقية استثنائية">ترقية استثنائية</option>
+                    <option value="علاوة دورية">علاوة دورية / سنوية</option>
+                    <option value="ندب على درجة">ندب على درجة</option>
+                    <option value="تسوية وضع">تسوية وضع وظيفي</option>
+                    <option value="تحويل من اللائحة 418 إلى نظام الدرجات العامة">تحويل من اللائحة 418</option>
+                    <option value="تكليف">تكليفات ومهام</option>
+                    <option value="إنهاء تكليف">إنهاء تكليف</option>
+                    <option value="نقل">نقل وظيفي</option>
+                    <option value="تغيير مكان العمل">تغيير مكان العمل</option>
+                    <option value="ندب">ندب وإعارة</option>
+                    <option value="تغيير المسمى الوظيفي">تغيير المسمى الوظيفي</option>
+                    <option value="تعيين">تعيين</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Sorting Controls */}
+              <div className="flex items-center gap-1 self-end md:self-auto shrink-0 bg-white p-1 rounded-lg border border-slate-200">
+                <span className="text-[11px] font-bold text-gray-500 px-1.5">الترتيب:</span>
+                <button
+                  type="button"
+                  onClick={() => setCareerSortOrder('newest')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                    careerSortOrder === 'newest'
+                      ? 'bg-slate-800 text-white shadow-2xs'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowUpDown className="w-3 h-3" />
+                  <span>الأحدث أولاً</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCareerSortOrder('oldest')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                    careerSortOrder === 'oldest'
+                      ? 'bg-slate-800 text-white shadow-2xs'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowUpDown className="w-3 h-3" />
+                  <span>الأقدم أولاً</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 12-Column Chronological Table (Requirement 3, 4, 14) */}
+            <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-2xs">
+              <table className="w-full text-right text-xs border-collapse min-w-[1050px]">
+                <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-200 select-none">
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-400">
-                      لا توجد سجلات ترقية أو تسوية مسجلة لهذا الموظف
-                    </td>
+                    <th className="p-2.5 w-10 text-center">#</th>
+                    <th className="p-2.5 min-w-[130px]">1. نوع الحركة</th>
+                    <th className="p-2.5 min-w-[95px]">2. الدرجة السابقة</th>
+                    <th className="p-2.5 min-w-[105px]">3. الدرجة الجديدة</th>
+                    <th className="p-2.5 w-20 text-center">4. العلاوات</th>
+                    <th className="p-2.5 min-w-[90px]">5. رقم القرار</th>
+                    <th className="p-2.5 min-w-[90px]">6. تاريخ صدور القرار</th>
+                    <th className="p-2.5 min-w-[95px]">7. تاريخ النفاذ</th>
+                    <th className="p-2.5 min-w-[90px]">8. تاريخ الاستحقاق</th>
+                    <th className="p-2.5 min-w-[110px]">9. الجهة المصدرة</th>
+                    <th className="p-2.5 min-w-[100px]">10. تقرير الكفاءة</th>
+                    <th className="p-2.5 min-w-[110px]">11. ملاحظات</th>
+                    <th className="p-2.5 w-24 text-center sticky left-0 bg-slate-100 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
+                      12. الإجراءات
+                    </th>
                   </tr>
-                ) : (
-                  fullCareerHistory.map((rec, idx) => (
-                    <tr key={rec.id} className="hover:bg-gray-50 transition">
-                      <td className="p-2.5 text-center font-mono text-gray-400">{idx + 1}</td>
-                      <td className="p-2.5 font-mono font-semibold text-gray-800">{formatDateDisplay(rec.actionDate)}</td>
-                      <td className="p-2.5">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-900 border border-blue-200">
-                          {rec.actionType}
-                        </span>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {processedCareerHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="p-10 text-center text-gray-400 space-y-2">
+                        <TrendingUp className="w-8 h-8 mx-auto text-gray-300 stroke-[1.5]" />
+                        <p className="font-bold text-xs">لا توجد حركات وظيفية مسجلة تطابق معايير البحث.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCareerRecord(null);
+                            setIsCareerModalOpen(true);
+                          }}
+                          className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>إضافة الحركة الوظيفية الأولى</span>
+                        </button>
                       </td>
-                      <td className="p-2.5 text-gray-600">{rec.previousGrade || '—'}</td>
-                      <td className="p-2.5 font-bold text-amber-900">{rec.newGrade}</td>
-                      <td className="p-2.5 text-center font-mono font-bold text-gray-800">+{rec.newIncrement || 0}</td>
-                      <td className="p-2.5 font-mono text-gray-700">{rec.decisionNumber || '—'}</td>
-                      <td className="p-2.5 text-gray-600">{rec.notes || '—'}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    processedCareerHistory.map((rec, idx) => {
+                      const meta = getCareerActionMeta(rec.actionType);
+                      const isLatest = idx === 0 && careerSortOrder === 'newest';
+                      
+                      return (
+                        <tr 
+                          key={rec.id} 
+                          className={`hover:bg-slate-50/90 transition group ${
+                            isLatest ? 'bg-amber-50/20' : ''
+                          }`}
+                        >
+                          {/* # */}
+                          <td className="p-2.5 text-center font-mono text-gray-400">
+                            {idx + 1}
+                          </td>
+
+                          {/* 1. نوع الحركة */}
+                          <td className="p-2.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-black border ${meta.badgeColor}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
+                              <span>{rec.actionType || 'ترقية'}</span>
+                            </span>
+                          </td>
+
+                          {/* 2. الدرجة السابقة */}
+                          <td className="p-2.5 text-gray-600 font-medium">
+                            {rec.previousGrade || '—'}
+                          </td>
+
+                          {/* 3. الدرجة الجديدة */}
+                          <td className="p-2.5">
+                            <span className="font-black text-amber-900 bg-amber-50/80 px-1.5 py-0.5 rounded border border-amber-200">
+                              {rec.newGrade || '—'}
+                            </span>
+                          </td>
+
+                          {/* 4. عدد العلاوات */}
+                          <td className="p-2.5 text-center font-mono font-bold text-gray-800">
+                            {rec.newIncrement !== undefined ? `+${rec.newIncrement}` : '—'}
+                          </td>
+
+                          {/* 5. رقم القرار */}
+                          <td className="p-2.5 font-mono text-gray-700 font-bold">
+                            {rec.decisionNumber || '—'}
+                          </td>
+
+                          {/* 6. تاريخ صدور القرار */}
+                          <td className="p-2.5 font-mono text-gray-600 text-[11px]">
+                            {formatDateDisplay(rec.decisionIssueDate || rec.decisionDate) || '—'}
+                          </td>
+
+                          {/* 7. تاريخ النفاذ */}
+                          <td className="p-2.5 font-mono font-black text-slate-900 text-xs">
+                            {formatDateDisplay(rec.actionDate || rec.effectiveDate) || '—'}
+                          </td>
+
+                          {/* 8. تاريخ الاستحقاق */}
+                          <td className="p-2.5 font-mono text-gray-600 text-[11px]">
+                            {formatDateDisplay(rec.entitlementDate) || '—'}
+                          </td>
+
+                          {/* 9. الجهة المصدرة */}
+                          <td className="p-2.5 text-gray-700 text-[11px]">
+                            {rec.issuingAuthority || 'وزارة الصحة'}
+                          </td>
+
+                          {/* 10. تقرير الكفاءة */}
+                          <td className="p-2.5 text-[11px]">
+                            {rec.competencyEvaluation && rec.competencyEvaluation !== 'غير متوفر' ? (
+                              <div className="flex flex-col">
+                                <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block text-center">
+                                  {rec.competencyEvaluation}
+                                </span>
+                                {rec.evaluationYear && (
+                                  <span className="text-[10px] text-gray-500 font-mono text-center">
+                                    سنة {rec.evaluationYear}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">غير متوفر</span>
+                            )}
+                          </td>
+
+                          {/* 11. ملاحظات وتفاصيل الحركة */}
+                          <td className="p-2.5 text-gray-600 text-[11px] max-w-[180px]">
+                            <div className="space-y-0.5">
+                              {rec.assignmentTitle && (
+                                <div className="font-bold text-indigo-800 text-[10px] bg-indigo-50 px-1 py-0.5 rounded border border-indigo-200">
+                                  تكليف: {rec.assignmentTitle} {rec.assignmentType ? `(${rec.assignmentType})` : ''}
+                                </div>
+                              )}
+                              {(rec.newWorkLocation || rec.workLocation) && (
+                                <div className="text-[10px] text-teal-800 bg-teal-50 px-1 py-0.5 rounded border border-teal-200">
+                                  مكان العمل: {rec.previousWorkLocation ? `${rec.previousWorkLocation} ← ` : ''}{rec.newWorkLocation || rec.workLocation}
+                                </div>
+                              )}
+                              {(rec.newDepartment || rec.department) && (
+                                <div className="text-[10px] text-slate-700 bg-slate-100 px-1 py-0.5 rounded">
+                                  القسم: {rec.previousDepartment ? `${rec.previousDepartment} ← ` : ''}{rec.newDepartment || rec.department}
+                                </div>
+                              )}
+                              {rec.secondmentEntity && (
+                                <div className="text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">
+                                  جهة الندب: {rec.secondmentEntity}
+                                </div>
+                              )}
+                              {rec.newJobTitle && (
+                                <div className="text-[10px] text-purple-800 bg-purple-50 px-1 py-0.5 rounded border border-purple-200">
+                                  المسمى: {rec.previousJobTitle ? `${rec.previousJobTitle} ← ` : ''}{rec.newJobTitle}
+                                </div>
+                              )}
+                              {(rec.notes || rec.reason) && (
+                                <p className="truncate text-gray-600 text-[11px]" title={rec.notes || rec.reason}>
+                                  {rec.notes || rec.reason}
+                                </p>
+                              )}
+                              {!rec.assignmentTitle && !rec.newWorkLocation && !rec.workLocation && !rec.newDepartment && !rec.department && !rec.secondmentEntity && !rec.newJobTitle && !rec.notes && !rec.reason && (
+                                <span>—</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* 12. الإجراءات (تعديل / حذف) */}
+                          <td className="p-2.5 text-center sticky left-0 bg-white group-hover:bg-slate-50 transition shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCareerRecord(rec);
+                                  setIsCareerModalOpen(true);
+                                }}
+                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition cursor-pointer border border-slate-300"
+                                title="تعديل بيانات الحركة الوظيفية (يتم تحديث السجل القائم وإعادة احتساب الدرجة الحالية تلقائياً)"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCareerMovement(rec.id, `${rec.actionType} - ${rec.newGrade || ''}`)}
+                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-md transition cursor-pointer border border-red-200"
+                                title="حذف هذه الحركة الوظيفية"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom helper footnote */}
+            <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
+              <span>
+                إجمالي الحركات المعروضة: {processedCareerHistory.length} من أصل {fullCareerHistory.length}
+              </span>
+              <span className="text-slate-600 font-medium">
+                * عند تعديل أو حذف أي حركة، يقوم النظام فورياً بإعادة احتساب الدرجة الحالية للوضع المطابق للتاريخ النفاذ.
+              </span>
+            </div>
+
           </div>
         </div>
       )}
@@ -2369,6 +2862,32 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
           currentUser={currentUser}
           generalManagerName={generalManagerName}
           officialLogoUrl={officialLogoUrl}
+        />
+      )}
+
+      {/* 8. Career Movement Add & Edit Modal (Requirement 2 & 14) */}
+      {isCareerModalOpen && (
+        <CareerActionModal
+          isOpen={isCareerModalOpen}
+          onClose={() => {
+            setIsCareerModalOpen(false);
+            setEditingCareerRecord(null);
+          }}
+          onSubmit={(savedRecord) => {
+            if (editingCareerRecord && onUpdateCareerRecord) {
+              onUpdateCareerRecord(savedRecord);
+              triggerToast('تم تحديث الحركة الوظيفية وإعادة احتساب الدرجة الحالية بنجاح.');
+            } else if (onAddCareerRecord) {
+              onAddCareerRecord(savedRecord);
+              triggerToast('تمت إضافة الحركة الوظيفية وإعادة احتساب الدرجة الحالية بنجاح.');
+            }
+            setIsCareerModalOpen(false);
+            setEditingCareerRecord(null);
+          }}
+          employees={employees.length > 0 ? employees : [employee]}
+          initialEmployeeId={employee.id}
+          recordToEdit={editingCareerRecord}
+          currentUser={currentUser}
         />
       )}
 

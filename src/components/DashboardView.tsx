@@ -57,8 +57,8 @@ interface DashboardViewProps {
 const COLOR_PALETTE = ['#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#7F1D1D'];
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  employees,
-  logs,
+  employees = [],
+  logs = [],
   leaves = [],
   promotions = [],
   increments = [],
@@ -70,27 +70,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onUpdateEmployeeStatus,
   onAddAuditLog
 }) => {
-  const totalCount = employees.length;
-  const maleCount = employees.filter((e) => e.gender === 'ذكر').length;
-  const femaleCount = employees.filter((e) => e.gender === 'أنثى').length;
-  const activeInCadreCount = employees.filter((e) => isEmployeeActiveInCadre(e)).length;
-  const outsideCadreCount = employees.filter((e) => isOutsideCadreStatus(e.status)).length;
-  const transferredOutCount = employees.filter((e) => e.status === 'منقول خارجياً').length;
-  const activeDutyCount = employees.filter((e) => e.status === 'على رأس العمل').length;
-  const withPdfCount = employees.filter((e) => e.pdfPath && e.pdfPath.length > 0).length;
+  const safeEmployees = employees || [];
+  const safeLeaves = leaves || [];
+  const safeRules = rules || [];
+  const totalCount = safeEmployees.length;
+  const maleCount = safeEmployees.filter((e) => e.gender === 'ذكر').length;
+  const femaleCount = safeEmployees.filter((e) => e.gender === 'أنثى').length;
+  const activeInCadreCount = safeEmployees.filter((e) => isEmployeeActiveInCadre(e)).length;
+  const outsideCadreCount = safeEmployees.filter((e) => isOutsideCadreStatus(e.status)).length;
+  const transferredOutCount = safeEmployees.filter((e) => e.status === 'منقول خارجياً').length;
+  const activeDutyCount = safeEmployees.filter((e) => e.status === 'على رأس العمل').length;
+  const withPdfCount = safeEmployees.filter((e) => e.pdfPath && e.pdfPath.length > 0).length;
   const missingPdfCount = totalCount - withPdfCount;
 
   // HR Calculations (Synchronized with Promotions & Increments engine)
-  const eligiblePromotionsCount = employees.filter((e) => calculatePromotionRecommendation(e, rules).status === 'مستحق للترقية').length;
-  const longServiceCount = employees.filter((e) => calculateLeaveSummary(e, leaves, rules).isLongService).length;
-  const activeLeavesCount = employees.filter((e) => e.status === 'إجازة').length;
+  const eligiblePromotionsCount = safeEmployees.filter((e) => calculatePromotionRecommendation(e, safeRules).status === 'مستحق للترقية').length;
+  const longServiceCount = safeEmployees.filter((e) => calculateLeaveSummary(e, safeLeaves, safeRules).isLongService).length;
+  const activeLeavesCount = safeEmployees.filter((e) => e.status === 'إجازة').length;
 
   // Real-time Leave Alerts Calculations for Summary Banners
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const leavesEndingSoonCount = useMemo(() => {
     const today = new Date(todayStr + 'T00:00:00');
-    return leaves.filter(leave => {
+    return safeLeaves.filter(leave => {
       if (leave.status !== 'مقبولة') return false;
       const normEnd = normalizeDateStorage(leave.endDate);
       if (!normEnd) return false;
@@ -98,20 +101,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const diffDays = Math.round((endDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       return diffDays >= -14 && diffDays <= 7;
     }).length;
-  }, [leaves, todayStr]);
+  }, [safeLeaves, todayStr]);
 
   const unapprovedLeavesCount = useMemo(() => {
-    return leaves.filter(leave => {
+    return safeLeaves.filter(leave => {
       return leave.status === 'قيد المراجعة' || 
              leave.reviewStatus === 'غير مراجع' || 
              leave.reviewStatus === 'قيد المراجعة' ||
              (leave.status !== 'مقبولة' && leave.status !== 'مرفوضة' && leave.status !== 'ملغاة');
     }).length;
-  }, [leaves]);
+  }, [safeLeaves]);
 
   // Department distribution
   const deptMap: Record<string, number> = {};
-  employees.forEach((e) => {
+  safeEmployees.forEach((e) => {
     deptMap[e.department] = (deptMap[e.department] || 0) + 1;
   });
   const deptData = Object.entries(deptMap).map(([name, count]) => ({

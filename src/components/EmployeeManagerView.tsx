@@ -52,6 +52,7 @@ import {
 import { parseGradeNumber, isOutsideCadreStatus } from '../utils/hrCalculations';
 import { formatDateDisplay } from '../utils/dateUtils';
 import { isInvalidPlaceholderName, isFakeSequentialNationalId } from '../utils/fakeRecordDetection';
+import { getGenderFromNationalId, getGenderFromEmployee, normalizeNationalId } from '../utils/nationalIdUtils';
 import { sortEmployeesNumerically } from '../utils/employeeSortingUtils';
 import { EmployeeReviewModal } from './EmployeeReviewModal';
 import { TestRecordsCleanupModal } from './TestRecordsCleanupModal';
@@ -127,6 +128,9 @@ interface EmployeeManagerViewProps {
   onDeleteQualification?: (id: string) => void;
   onSaveEvaluation?: (evaluation: AnnualPerformanceEvaluation) => void;
   onDeleteEvaluation?: (id: string) => void;
+  onAddCareerRecord?: (record: CareerPromotionRecord) => void;
+  onUpdateCareerRecord?: (record: CareerPromotionRecord) => void;
+  onDeleteCareerRecord?: (id: string) => void;
   onImportComplete?: (result: MigrationCommitResult) => void;
   onNavigateToTab?: (tabName: string) => void;
   currentUser?: string;
@@ -135,7 +139,7 @@ interface EmployeeManagerViewProps {
 }
 
 export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
-  employees,
+  employees = [],
   leaves = [],
   increments = [],
   promotions = [],
@@ -170,6 +174,9 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
   onDeleteQualification,
   onSaveEvaluation,
   onDeleteEvaluation,
+  onAddCareerRecord,
+  onUpdateCareerRecord,
+  onDeleteCareerRecord,
   onImportComplete,
   onNavigateToTab,
   currentUser = 'المستخدم الحالي',
@@ -189,6 +196,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('الكل');
   const [selectedSalarySystemFilter, setSelectedSalarySystemFilter] = useState<string>('الكل');
   const [selectedNationalityFilter, setSelectedNationalityFilter] = useState<'الكل' | 'ليبي' | 'غير ليبي'>('الكل');
+  const [selectedGenderFilter, setSelectedGenderFilter] = useState<'الكل' | 'ذكر' | 'أنثى' | 'غير محدد'>('الكل');
   const [selectedHiringEntityFilter, setSelectedHiringEntityFilter] = useState<string>('الكل');
 
   // Career & Promotion Filters
@@ -400,6 +408,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     if (selectedGradeFilter !== 'الكل') count++;
     if (selectedSalarySystemFilter !== 'الكل') count++;
     if (selectedNationalityFilter !== 'الكل') count++;
+    if (selectedGenderFilter !== 'الكل') count++;
     if (selectedHiringEntityFilter !== 'الكل') count++;
     if (selectedIncrementFilter !== 'الكل') count++;
     if (selectedPromotionEligibilityFilter !== 'الكل') count++;
@@ -422,6 +431,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     selectedGradeFilter,
     selectedSalarySystemFilter,
     selectedNationalityFilter,
+    selectedGenderFilter,
     selectedHiringEntityFilter,
     selectedIncrementFilter,
     selectedPromotionEligibilityFilter,
@@ -445,6 +455,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     setSelectedGradeFilter('الكل');
     setSelectedSalarySystemFilter('الكل');
     setSelectedNationalityFilter('الكل');
+    setSelectedGenderFilter('الكل');
     setSelectedHiringEntityFilter('الكل');
     setSelectedIncrementFilter('الكل');
     setSelectedPromotionEligibilityFilter('الكل');
@@ -471,6 +482,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     if (selectedGradeFilter !== 'الكل') list.push({ label: 'الدرجة', value: selectedGradeFilter, onRemove: () => setSelectedGradeFilter('الكل') });
     if (selectedSalarySystemFilter !== 'الكل') list.push({ label: 'المرتبات', value: selectedSalarySystemFilter, onRemove: () => setSelectedSalarySystemFilter('الكل') });
     if (selectedNationalityFilter !== 'الكل') list.push({ label: 'الجنسية', value: selectedNationalityFilter, onRemove: () => setSelectedNationalityFilter('الكل') });
+    if (selectedGenderFilter !== 'الكل') list.push({ label: 'الجنس', value: selectedGenderFilter, onRemove: () => setSelectedGenderFilter('الكل') });
     if (selectedHiringEntityFilter !== 'الكل') list.push({ label: 'الجهة', value: selectedHiringEntityFilter, onRemove: () => setSelectedHiringEntityFilter('الكل') });
     if (selectedQualFilter !== 'الكل') list.push({ label: 'المؤهل', value: selectedQualFilter, onRemove: () => setSelectedQualFilter('الكل') });
     if (selectedIncrementFilter !== 'الكل') list.push({ label: 'العلاوة', value: selectedIncrementFilter, onRemove: () => setSelectedIncrementFilter('الكل') });
@@ -493,6 +505,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     selectedGradeFilter,
     selectedSalarySystemFilter,
     selectedNationalityFilter,
+    selectedGenderFilter,
     selectedHiringEntityFilter,
     selectedQualFilter,
     selectedIncrementFilter,
@@ -543,6 +556,12 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
         if (emp.nationality && emp.nationality !== 'ليبي') return false;
       } else if (selectedNationalityFilter === 'غير ليبي') {
         if (!emp.nationality || emp.nationality === 'ليبي') return false;
+      }
+
+      // 3.5. Gender Filter (Derived Authoritatively from National ID: 1=ذكر, 2=أنثى)
+      if (selectedGenderFilter !== 'الكل') {
+        const empGender = getGenderFromEmployee(emp);
+        if (empGender !== selectedGenderFilter) return false;
       }
 
       // 4. Career & Promotion Filters
@@ -662,6 +681,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     selectedGradeFilter,
     selectedSalarySystemFilter,
     selectedNationalityFilter,
+    selectedGenderFilter,
     selectedHiringEntityFilter,
     selectedIncrementFilter,
     selectedPromotionEligibilityFilter,
@@ -802,12 +822,18 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
     const nat = emp.nationality || (emp.nationalId && /^[0-9]{12}$/.test(emp.nationalId.trim()) ? 'ليبي' : 'ليبي');
     const doc = emp.documentType || (nat === 'ليبي' ? 'الرقم الوطني' : 'رقم جواز السفر');
     const inferredSys = emp.appointmentSalarySystem || (emp.appointmentGrade ? inferSalarySystemFromGrade(emp.appointmentGrade) : 'جدول مرتبات القانون 15');
+    const cleanNatId = normalizeNationalId(emp.nationalId);
+    let resolvedGender: Gender = emp.gender || 'ذكر';
+    if (cleanNatId.startsWith('1')) resolvedGender = 'ذكر';
+    else if (cleanNatId.startsWith('2')) resolvedGender = 'أنثى';
+
     setEditingEmp({
       ...emp,
       nationality: nat,
       documentType: doc,
-      nationalId: emp.nationalId || '',
+      nationalId: cleanNatId || emp.nationalId || '',
       passportNumber: emp.passportNumber || '',
+      gender: resolvedGender,
       jobGrade: matchedGrade || emp.jobGrade || '',
       appointmentSalarySystem: emp.appointmentSalarySystem || inferredSys || 'جدول مرتبات القانون 15',
       appointmentGrade: emp.appointmentGrade || 'الدرجة السادسة',
@@ -884,14 +910,20 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
       return;
     }
 
+    const cleanNatId = normalizeNationalId(trimmedNationalId);
+    let resolvedGender: Gender = editingEmp.gender || 'ذكر';
+    if (cleanNatId.startsWith('1')) resolvedGender = 'ذكر';
+    else if (cleanNatId.startsWith('2')) resolvedGender = 'أنثى';
+
     const payload: Employee = {
       ...editingEmp,
       fullName: trimmedFullName,
       jobNumber: trimmedJobNumber,
       nationality: trimmedNationality,
       documentType: isLibyan ? 'الرقم الوطني' : 'رقم جواز السفر',
-      nationalId: isLibyan ? trimmedNationalId : '',
-      passportNumber: !isLibyan ? (trimmedPassport || trimmedNationalId) : (editingEmp.passportNumber || '')
+      nationalId: isLibyan ? cleanNatId : '',
+      passportNumber: !isLibyan ? (trimmedPassport || cleanNatId) : (editingEmp.passportNumber || ''),
+      gender: resolvedGender
     };
 
     const exists = employees.some((e) => e.id === payload.id);
@@ -953,6 +985,10 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
         onDeleteQualification={onDeleteQualification}
         onSaveEvaluation={onSaveEvaluation}
         onDeleteEvaluation={onDeleteEvaluation}
+        employees={employees}
+        onAddCareerRecord={onAddCareerRecord}
+        onUpdateCareerRecord={onUpdateCareerRecord}
+        onDeleteCareerRecord={onDeleteCareerRecord}
         currentUser={currentUser}
         generalManagerName={generalManagerName}
         officialLogoUrl={officialLogoUrl}
@@ -1351,6 +1387,20 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                       <option value="الكل">الكل (ليبي ووافد)</option>
                       <option value="ليبي">المواطنون (ليبي)</option>
                       <option value="غير ليبي">الوافدون وغير الليبيين</option>
+                    </select>
+                  </div>
+
+                  {/* Gender Filter */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">الجنس</label>
+                    <select
+                      value={selectedGenderFilter}
+                      onChange={(e) => { setSelectedGenderFilter(e.target.value as any); setCurrentPage(1); }}
+                      className="w-full py-1.5 px-2 bg-slate-50 border border-slate-200 rounded text-xs font-semibold focus:ring-1 focus:ring-red-600 outline-none truncate"
+                    >
+                      <option value="الكل">الكل (الجميع)</option>
+                      <option value="ذكر">ذكر</option>
+                      <option value="أنثى">أنثى</option>
                     </select>
                   </div>
 
@@ -2105,7 +2155,18 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                           required
                           maxLength={12}
                           value={editingEmp.nationalId}
-                          onChange={(e) => setEditingEmp({ ...editingEmp, nationalId: e.target.value.replace(/\D/g, '') })}
+                          onChange={(e) => {
+                            const cleanId = normalizeNationalId(e.target.value);
+                            const firstDigit = cleanId.charAt(0);
+                            let newGender = editingEmp.gender;
+                            if (firstDigit === '1') newGender = 'ذكر';
+                            else if (firstDigit === '2') newGender = 'أنثى';
+                            setEditingEmp({
+                              ...editingEmp,
+                              nationalId: cleanId,
+                              gender: newGender
+                            });
+                          }}
                           placeholder="مثال: 119900123456"
                           className="w-full p-2.5 border rounded-lg font-mono font-bold text-gray-900 bg-white box-border focus:ring-2 focus:ring-red-600"
                         />
@@ -2124,12 +2185,23 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block font-bold text-gray-700 mb-1">رقم الإقامة / وثيقة العمل (اختياري)</label>
+                          <label className="block font-bold text-gray-700 mb-1">الرقم الوطني / الإقامة (إن وجد)</label>
                           <input
                             type="text"
                             value={editingEmp.nationalId || ''}
-                            onChange={(e) => setEditingEmp({ ...editingEmp, nationalId: e.target.value })}
-                            placeholder="رقم الإقامة..."
+                            onChange={(e) => {
+                              const cleanId = normalizeNationalId(e.target.value);
+                              const firstDigit = cleanId.charAt(0);
+                              let newGender = editingEmp.gender;
+                              if (firstDigit === '1') newGender = 'ذكر';
+                              else if (firstDigit === '2') newGender = 'أنثى';
+                              setEditingEmp({
+                                ...editingEmp,
+                                nationalId: cleanId,
+                                gender: newGender
+                              });
+                            }}
+                            placeholder="رقم الإقامة أو الرقم الوطني..."
                             className="w-full p-2.5 border rounded-lg font-mono bg-white box-border focus:ring-2 focus:ring-red-600"
                           />
                         </div>
@@ -2172,17 +2244,15 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                     />
                   </div>
 
-                  {/* Gender */}
+                  {/* Gender: Automatic from National ID */}
                   <div>
                     <label className="block font-bold text-gray-700 mb-1">الجنس</label>
-                    <select
-                      value={editingEmp.gender}
-                      onChange={(e) => setEditingEmp({ ...editingEmp, gender: e.target.value as Gender })}
-                      className="w-full p-2.5 border rounded-lg bg-white box-border focus:ring-2 focus:ring-red-600"
-                    >
-                      <option value="ذكر">ذكر</option>
-                      <option value="أنثى">أنثى</option>
-                    </select>
+                    <div className="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-bold text-sm box-border flex items-center justify-between">
+                      <span className="text-base text-gray-900">{editingEmp.gender === 'أنثى' ? 'أنثى' : 'ذكر'}</span>
+                      <span className="text-xs text-gray-500 font-normal">
+                        (يتحدد تلقائياً بمجرد إدخال الرقم الوطني: 1 = ذكر، 2 = أنثى)
+                      </span>
+                    </div>
                   </div>
 
                   {/* Marital Status */}

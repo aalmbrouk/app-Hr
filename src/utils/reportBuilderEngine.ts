@@ -23,6 +23,7 @@ import {
   SavedReportTemplate 
 } from '../types/reportBuilderTypes';
 import { DEPARTMENTS, QUALIFICATIONS, JOB_TITLES, HIRING_ENTITIES } from '../data/initialData';
+import { getGenderFromEmployee } from './nationalIdUtils';
 import { formatDateDisplay } from './dateUtils';
 import * as XLSX from 'xlsx';
 
@@ -569,7 +570,7 @@ export function formatColumnValue(colId: string, row: ExtendedReportRow, index: 
     case 'nationalId':
       return emp.nationalId || '—';
     case 'gender':
-      return emp.gender || '—';
+      return getGenderFromEmployee(emp);
     case 'motherName':
       return emp.motherName || '—';
     case 'birthDate':

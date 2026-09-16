@@ -93,14 +93,14 @@ interface PromotionsIncrementsViewProps {
 }
 
 export const PromotionsIncrementsView: React.FC<PromotionsIncrementsViewProps> = ({
-  employees,
-  promotions,
-  increments,
-  settlements,
+  employees = [],
+  promotions = [],
+  increments = [],
+  settlements = [],
   careerRecords = [],
-  rules,
-  promotionRules,
-  annualEvaluations,
+  rules = [],
+  promotionRules = [],
+  annualEvaluations = [],
   onUpdatePromotionRules,
   onAddPromotion,
   onAddIncrement,
@@ -141,7 +141,7 @@ export const PromotionsIncrementsView: React.FC<PromotionsIncrementsViewProps> =
 
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isEmpCareerReportOpen, setIsEmpCareerReportOpen] = useState(false);
-  const [selectedEmpForReport, setSelectedEmpForReport] = useState<Employee>(employees[0] || {} as Employee);
+  const [selectedEmpForReport, setSelectedEmpForReport] = useState<Employee>((employees && employees[0]) || {} as Employee);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -156,13 +156,13 @@ export const PromotionsIncrementsView: React.FC<PromotionsIncrementsViewProps> =
   // Combined comprehensive career records across all employees
   const allCareerHistory = useMemo(() => {
     const all: CareerPromotionRecord[] = [];
-    employees.forEach((emp) => {
+    (employees || []).forEach((emp) => {
       const empHistory = getEmployeeCareerHistory(
         emp.id,
-        careerRecords,
-        promotions,
-        increments,
-        settlements
+        careerRecords || [],
+        promotions || [],
+        increments || [],
+        settlements || []
       );
       empHistory.forEach((rec) => {
         all.push({
@@ -209,13 +209,13 @@ export const PromotionsIncrementsView: React.FC<PromotionsIncrementsViewProps> =
 
   // Calculated Libyan Promotion Eligibility Results (Primary Administrative Engine)
   const libyanPromotionResults = useMemo<PromotionEligibilityResult[]>(() => {
-    return employees.map((emp) => {
+    return (employees || []).map((emp) => {
       return calculateLibyanPromotionEligibility(emp, {
-        promotions,
-        increments,
-        careerRecords,
-        settlements,
-        annualEvaluations,
+        promotions: promotions || [],
+        increments: increments || [],
+        careerRecords: careerRecords || [],
+        settlements: settlements || [],
+        annualEvaluations: annualEvaluations || [],
         rules: localPromotionRules
       });
     });
@@ -265,10 +265,10 @@ export const PromotionsIncrementsView: React.FC<PromotionsIncrementsViewProps> =
 
   // Calculated promotion recommendations list for Tab 1 and Print Report (legacy compatibility)
   const recommendationList = useMemo(() => {
-    return employees.map((emp) => {
-      const rec = calculatePromotionRecommendation(emp, rules);
-      const inc = calculateAnnualIncrements(emp, 'Anniversary Date', undefined, increments);
-      const summary = calculateEmployeeCareerSummary(emp, careerRecords, promotions, increments, settlements);
+    return (employees || []).map((emp) => {
+      const rec = calculatePromotionRecommendation(emp, rules || []);
+      const inc = calculateAnnualIncrements(emp, 'Anniversary Date', undefined, increments || []);
+      const summary = calculateEmployeeCareerSummary(emp, careerRecords || [], promotions || [], increments || [], settlements || []);
       return {
         emp,
         rec,

@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActiveTab } from '../types';
 import { 
   LayoutDashboard, 
   Users, 
-  Search, 
   FileSpreadsheet, 
   BarChart3, 
   ShieldCheck, 
@@ -19,7 +18,9 @@ import {
   Clock,
   Sliders,
   Database,
-  Award
+  Award,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,108 +36,97 @@ export const Sidebar: React.FC<SidebarProps> = ({
   employeeCount,
   logCount
 }) => {
-  const mainNavItems = [
+  const [showSecondaryModules, setShowSecondaryModules] = useState(false);
+
+  // Clean Primary Navigation - Focused strictly on everyday employee management
+  const primaryNavItems = [
     {
       id: 'dashboard' as ActiveTab,
-      label: 'الرئيسية واللوحة الإحصائية',
+      label: 'الرئيسية',
       icon: LayoutDashboard,
       badge: null
     },
     {
       id: 'employees' as ActiveTab,
-      label: 'إدارة الموظفين والملفات',
+      label: 'الموظفون',
       icon: Users,
       badge: employeeCount.toLocaleString('ar-LY')
     },
     {
-      id: 'search' as ActiveTab,
-      label: 'الاستعلام السريع والبطاقات',
-      icon: Search,
-      badge: 'محدث'
-    }
-  ];
-
-  const hrModuleItems = [
+      id: 'history' as ActiveTab,
+      label: 'السيرة الوظيفية',
+      icon: Clock,
+      badge: null
+    },
     {
       id: 'leaves' as ActiveTab,
-      label: 'الإجازات والسنوات (30/45 يوم)',
+      label: 'الإجازات',
       icon: Calendar,
       badge: null
     },
     {
       id: 'promotions' as ActiveTab,
-      label: 'الترقيات والعلاوات الدورية',
+      label: 'الترقيات الوظيفية',
       icon: TrendingUp,
       badge: null
     },
     {
-      id: 'annual_evaluations' as ActiveTab,
-      label: 'تقارير الكفاءة السنوية',
-      icon: Award,
-      badge: 'A4 رسمي'
+      id: 'reports' as ActiveTab,
+      label: 'التقارير',
+      icon: FileSpreadsheet,
+      badge: null
     },
     {
       id: 'general_procedures' as ActiveTab,
-      label: 'الإجراءات الوظيفية والقرارات العامة',
+      label: 'إجراءات عامة',
       icon: FileCode2,
-      badge: 'جديد'
+      badge: 'مجمعة'
     },
     {
-      id: 'historical_418' as ActiveTab,
-      label: 'سجلات المسار التاريخي / اللائحة 418',
-      icon: History,
-      badge: 'لائحة 418'
+      id: 'backup' as ActiveTab,
+      label: 'الإعدادات / النسخ الاحتياطي',
+      icon: HardDrive,
+      badge: null
+    }
+  ];
+
+  // Complementary HR modules for secondary administration
+  const secondaryModuleItems = [
+    {
+      id: 'annual_evaluations' as ActiveTab,
+      label: 'تقارير الكفاءة السنوية',
+      icon: Award,
+      badge: 'رسمي'
     },
     {
       id: 'org_structure' as ActiveTab,
-      label: 'قاعدة الهيكل التنظيمي والوظائف',
+      label: 'الهيكل التنظيمي والوظائف',
       icon: Database,
       badge: null
     },
     {
       id: 'secondments' as ActiveTab,
-      label: 'الندب والتكليف والإعارات',
+      label: 'الندب والتكليف والإعارة',
       icon: Building2,
       badge: null
     },
     {
       id: 'transfers' as ActiveTab,
-      label: 'النقل الداخلي والخارجي',
+      label: 'حركات النقل',
       icon: ArrowLeftRight,
       badge: null
     },
     {
       id: 'disciplinary' as ActiveTab,
-      label: 'الجزاءات والخصومات والإنذارات',
+      label: 'الجزاءات والإنذارات',
       icon: AlertTriangle,
       badge: null
     },
     {
       id: 'resignations' as ActiveTab,
-      label: 'الاستقالات ونهاية الخدمة والنقل الخارجي',
+      label: 'نهاية الخدمة والاستقالات',
       icon: UserX,
       badge: null
-    },
-    {
-      id: 'history' as ActiveTab,
-      label: 'السجل التاريخي الشامل للموظف',
-      icon: Clock,
-      badge: null
-    },
-    {
-      id: 'hr_rules' as ActiveTab,
-      label: 'إعدادات وقواعد اللوائح (HR Rules)',
-      icon: Sliders,
-      badge: 'تعديل'
-    }
-  ];
-
-  const systemNavItems = [
-    {
-      id: 'reports' as ActiveTab,
-      label: 'مركز التقارير والتصدير',
-      icon: FileSpreadsheet,
-      badge: 'Builder'
     },
     {
       id: 'statistics' as ActiveTab,
@@ -148,100 +138,157 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'users' as ActiveTab,
       label: 'المستخدمون والصلاحيات',
       icon: ShieldCheck,
-      badge: 'Admins'
-    },
-    {
-      id: 'logs' as ActiveTab,
-      label: 'سجل تدقيق العمليات (Logs)',
-      icon: History,
-      badge: logCount.toString()
-    },
-    {
-      id: 'backup' as ActiveTab,
-      label: 'النسخ الاحتياطي والإعدادات',
-      icon: HardDrive,
       badge: null
     },
     {
-      id: 'excel_validation' as ActiveTab,
-      label: 'استيراد وفحص بيانات Excel',
-      icon: FileSpreadsheet,
-      badge: 'فحص آمن'
+      id: 'logs' as ActiveTab,
+      label: 'سجل تدقيق العمليات',
+      icon: History,
+      badge: logCount > 0 ? logCount.toString() : null
     },
     {
-      id: 'vba_code' as ActiveTab,
-      label: 'أكواد VBA الكاملة للإكسل',
-      icon: FileCode2,
-      badge: 'VBA Core'
+      id: 'hr_rules' as ActiveTab,
+      label: 'قواعد اللوائح (HR Rules)',
+      icon: Sliders,
+      badge: null
     }
   ];
 
-  const renderNavGroup = (title: string, items: typeof mainNavItems) => (
-    <div className="mb-4">
-      <div className="px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-        <span>{title}</span>
-      </div>
-      <div className="space-y-0.5">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          const isVba = item.id === 'vba_code';
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all group ${
-                isActive
-                  ? isVba 
-                    ? 'bg-amber-500 text-slate-950 font-black shadow'
-                    : 'bg-red-700 text-white font-black shadow-md shadow-red-900/10'
-                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Icon
-                  className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-105 ${
-                    isActive 
-                      ? isVba ? 'text-slate-950' : 'text-white'
-                      : isVba ? 'text-amber-600' : 'text-red-700 group-hover:text-red-800'
-                  }`}
-                />
-                <span className="truncate">{item.label}</span>
-              </div>
-
-              {item.badge && (
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold flex-shrink-0 ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-slate-100 text-slate-600 border border-slate-200'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const isSecondaryActive = secondaryModuleItems.some((item) => item.id === activeTab);
 
   return (
-    <aside className="w-full md:w-64 bg-white border-l border-slate-200 text-slate-800 flex-shrink-0 min-h-[calc(100vh-73px)] shadow-sm">
+    <aside className="w-full md:w-64 bg-white border-l border-slate-200 text-slate-800 flex-shrink-0 min-h-[calc(100vh-73px)] shadow-xs">
       <div className="p-3">
-        {renderNavGroup('القسم الرئيسي', mainNavItems)}
-        {renderNavGroup('وحدات الشؤون الوظيفية HR', hrModuleItems)}
-        {renderNavGroup('النظام والتقارير', systemNavItems)}
+        {/* Primary Navigation Section */}
+        <div className="mb-4">
+          <div className="px-3 py-1.5 text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+            <span>القائمة الرئيسية</span>
+            <span className="text-[10px] text-slate-400 font-normal">المهام اليومية</span>
+          </div>
+          <nav className="space-y-1">
+            {primaryNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isGeneralProcedures = item.id === 'general_procedures';
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                    isActive
+                      ? 'bg-red-700 text-white font-black shadow-md shadow-red-900/10'
+                      : isGeneralProcedures
+                      ? 'text-slate-800 hover:bg-red-50/80 hover:text-red-900 border border-slate-200/60'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-105 ${
+                        isActive 
+                          ? 'text-white' 
+                          : isGeneralProcedures 
+                          ? 'text-red-700' 
+                          : 'text-slate-500 group-hover:text-red-700'
+                      }`}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+
+                  {item.badge && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold flex-shrink-0 ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : isGeneralProcedures
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Secondary Modules Section (Collapsible to keep interface ultra-clean) */}
+        <div className="pt-2 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => setShowSecondaryModules((prev) => !prev)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+              سجلات ووحدات إضافية
+            </span>
+            <div className="flex items-center gap-1 text-slate-400">
+              {isSecondaryActive && (
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              )}
+              {showSecondaryModules || isSecondaryActive ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </div>
+          </button>
+
+          {(showSecondaryModules || isSecondaryActive) && (
+            <div className="mt-1 space-y-0.5 animate-in fade-in duration-150">
+              {secondaryModuleItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer group ${
+                      isActive
+                        ? 'bg-red-700 text-white font-black shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon
+                        className={`w-3.5 h-3.5 flex-shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-red-700'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+
+                    {item.badge && (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold flex-shrink-0 ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Brand Emblem Footer Box */}
-        <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-          <div className="w-9 h-9 mx-auto mb-1.5 rounded-xl bg-white border border-red-300 p-0.5 shadow-sm flex items-center justify-center overflow-hidden">
+        <div className="mt-6 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+          <div className="w-9 h-9 mx-auto mb-1.5 rounded-xl bg-white border border-red-300 p-0.5 shadow-xs flex items-center justify-center overflow-hidden">
             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <h4 className="text-xs font-black text-slate-900">مصرف الدم المركزي بلدية المرج</h4>
-          <p className="text-[10px] text-slate-500 font-medium">نظام الموارد البشرية - دولة ليبيا</p>
+          <h4 className="text-xs font-black text-slate-900">مصرف الدم المركزي المرج</h4>
+          <p className="text-[10px] text-slate-500 font-medium">إدارة الموارد البشرية - ليبيا</p>
         </div>
       </div>
     </aside>

@@ -19,6 +19,7 @@ import {
 } from './careerUtils';
 import { calculateEmployeeCurrentGrade } from './gradeCalculationEngine';
 import { isInvalidPlaceholderName, isFakeSequentialNationalId } from './fakeRecordDetection';
+import { getGenderFromNationalId } from './nationalIdUtils';
 
 export type ProposedActionType = 
   | 'لا تغيير' 
@@ -823,7 +824,10 @@ export function parseExcelMigrationData(
       motherName: detectedMotherName || 'غير مسجل',
       birthDate: detectedBirthDate || (existingMatch?.birthDate || '1990-01-01'),
       birthPlace: detectedBirthPlace || (existingMatch?.birthPlace || 'المرج'),
-      gender: (existingMatch?.gender || 'ذكر'),
+      gender: (() => {
+        const effectiveNatId = cleanNatId || (existingMatch?.nationalId || '') || rawNatId || '';
+        return getGenderFromNationalId(effectiveNatId);
+      })(),
       maritalStatus: (existingMatch?.maritalStatus || 'متزوج'),
       status: (detectedStatus as EmploymentStatus) || 'على رأس العمل',
       hireDate: detectedHireDate || (existingMatch?.hireDate || '2015-01-01'),

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount, ActiveTab } from '../types';
+import { UserAccount, ActiveTab, Employee, CareerPromotionRecord } from '../types';
 import { LogOut, Shield, Database, Clock, HardDrive, FileCode, Droplet, UserCheck } from 'lucide-react';
+import { GlobalQuickSearch } from './GlobalQuickSearch';
 
 interface HeaderProps {
   currentUser: UserAccount | null;
@@ -9,6 +10,9 @@ interface HeaderProps {
   activeTab: ActiveTab;
   employeeCount: number;
   onQuickBackup: () => void;
+  employees: Employee[];
+  careerRecords?: CareerPromotionRecord[];
+  onSelectEmployee: (employee: Employee) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,7 +21,10 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   activeTab,
   employeeCount,
-  onQuickBackup
+  onQuickBackup,
+  employees,
+  careerRecords = [],
+  onSelectEmployee
 }) => {
   const [timeString, setTimeString] = useState<string>('');
 
@@ -81,21 +88,18 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Center Info & Live Clock */}
-          <div className="hidden lg:flex items-center gap-4 bg-red-950/60 backdrop-blur border border-red-800/50 rounded-xl px-3 py-1.5 text-xs text-red-100">
-            <div className="flex items-center gap-1.5 text-red-200">
-              <Clock className="w-4 h-4 text-red-400" />
-              <span className="font-mono text-sm dir-rtl">{timeString}</span>
-            </div>
-            <div className="h-4 w-px bg-red-800" />
-            <div className="flex items-center gap-1 text-emerald-400 font-semibold">
-              <Shield className="w-3.5 h-3.5" />
-              <span>الأوراق مخفية (VeryHidden)</span>
-            </div>
+          {/* Global Quick Search - Always visible in the main header */}
+          <div className="flex-1 max-w-xl mx-2 flex justify-center order-3 md:order-2 w-full md:w-auto">
+            <GlobalQuickSearch
+              employees={employees}
+              careerRecords={careerRecords}
+              onSelectEmployee={onSelectEmployee}
+              className="w-full flex justify-center"
+            />
           </div>
 
           {/* Quick Actions & User Profile */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 order-2 md:order-3">
             <button
               onClick={() => setActiveTab('vba_code')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${

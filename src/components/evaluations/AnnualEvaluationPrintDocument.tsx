@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnnualPerformanceEvaluation } from '../../types';
 import { EVALUATION_CATEGORIES, EVALUATION_RATING_GUIDE } from '../../utils/evaluationUtils';
+import { formatDateDisplay } from '../../utils/dateUtils';
 
 interface AnnualEvaluationPrintDocumentProps {
   evaluation: AnnualPerformanceEvaluation;
@@ -133,11 +134,19 @@ export const AnnualEvaluationPrintDocument: React.FC<AnnualEvaluationPrintDocume
             <tr>
               <td className="border border-black bg-slate-50 font-bold p-1">الدرجة الحالية:</td>
               <td className="border border-black font-bold p-1">
-                {evaluation.currentGrade || '...........................................'}
+                {evaluation.currentGrade === 'تحتاج إلى مراجعة' ? (
+                  <span className="text-red-700 font-bold">تحتاج إلى مراجعة</span>
+                ) : (
+                  evaluation.currentGrade || '...........................................'
+                )}
               </td>
               <td className="border border-black bg-slate-50 font-bold p-1">تاريخ نيلها:</td>
               <td className="border border-black font-medium p-1">
-                {evaluation.gradeDate || '...........................................'}
+                {evaluation.currentGrade === 'تحتاج إلى مراجعة' || !evaluation.gradeDate ? (
+                  evaluation.currentGrade === 'تحتاج إلى مراجعة' ? 'تحتاج إلى مراجعة' : '...........................................'
+                ) : (
+                  formatDateDisplay(evaluation.gradeDate) || evaluation.gradeDate
+                )}
               </td>
               <td className="border border-black bg-slate-50 font-bold p-1">الجنسية:</td>
               <td className="border border-black font-medium p-1">

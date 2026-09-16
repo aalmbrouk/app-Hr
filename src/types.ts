@@ -10,7 +10,8 @@ export type EmploymentStatus =
   | 'منهي خدماته' 
   | 'متوفى';
 
-export type Gender = 'ذكر' | 'أنثى';
+export type Gender = 'ذكر' | 'أنثى' | 'غير محدد';
+export type GenderSource = 'National ID' | 'Manual' | 'غير محدد';
 
 export type AssignmentCategory = 'إداري' | 'طبي';
 
@@ -91,7 +92,9 @@ export interface Employee {
   motherName: string;              // اسم الأم
   birthDate: string;               // تاريخ الميلاد
   birthPlace: string;              // مكان الميلاد
-  gender: Gender;                  // الجنس
+  gender: Gender;                  // الجنس: 'ذكر' | 'أنثى' | 'غير محدد' (مستنتج تلقائياً من الرقم الوطني)
+  genderSource?: GenderSource | string; // مصدر استنتاج الجنس ('National ID')
+  genderDetectionWarning?: string; // رسالة التحذير في حال عدم التمكن من الاستنتاج
   maritalStatus: string;           // الحالة الاجتماعية
   status: EmploymentStatus;        // الوضع الوظيفي
   hireDate: string;                // تاريخ التعيين (الاصلي)
@@ -139,6 +142,12 @@ export interface Employee {
   lastGradeAffectingAction?: LastGradeAffectingAction;
   lastIncrementDate?: string;
   nextIncrementDate?: string;
+
+  // Work Location & Assignments (Comprehensive Career History)
+  workLocation?: string; // مكان العمل الحالي (مقر العمل / الموقع / الفرع)
+  currentAssignment?: string; // التكليف الحالي (المنصب / المهمة المكلف بها)
+  assignmentStartDate?: string;
+  assignmentEndDate?: string;
 
   // Legacy/optional fields for migration archiving
   financialGrade?: string;
@@ -217,13 +226,26 @@ export interface LeaveTransaction {
 }
 
 export type CareerActionType = 
+  | 'تعيين'
   | 'ترقية' 
   | 'علاوة دورية' 
-  | 'تسوية وضع' 
+  | 'علاوة سنوية'
   | 'ترقية استثنائية' 
+  | 'تسوية وضع' 
+  | 'تكليف'
+  | 'إنهاء تكليف'
+  | 'نقل'
+  | 'تغيير مكان العمل'
+  | 'ندب'
+  | 'انتهاء الندب'
+  | 'العودة من الندب'
+  | 'تغيير المسمى الوظيفي'
+  | 'حركة وظيفية أخرى'
   | 'ندب على درجة' 
+  | 'إعارة / نقل خارجي'
+  | 'إجراء وظيفي رسمي آخر'
   | 'تحويل من اللائحة 418 إلى نظام الدرجات العامة'
-  | 'تعيين';
+  | string;
 
 export type HistoricalCareerClassification = 
   | 'REGULATION_418_HISTORICAL'
@@ -240,26 +262,73 @@ export interface CareerPromotionRecord {
   employeeName: string;
   nationalId?: string;
   actionType: CareerActionType;
-  previousGrade: string;
-  previousIncrement: number;
-  newGrade: string;
-  newIncrement: number;
+  movementType?: string; // نوع الحركة الوظيفية
+  previousGrade?: string;
+  previousIncrement?: number;
+  previousIncrementCount?: number;
+  newGrade?: string;
+  newIncrement?: number;
+  newIncrementCount?: number;
+  salaryScale?: string; // جدول المرتبات
+  reason?: string; // السبب أو الوصف
   historicalJobTitle?: string;
   historicalGrade?: string;
   historicalClassification?: HistoricalCareerClassification;
   isImmutable?: boolean;
   sourceFile?: string;
   sourceRow?: number;
-  actionDate: string; // YYYY-MM-DD
-  decisionDate: string;
-  decisionNumber: string;
+  actionDate: string; // YYYY-MM-DD (Effective Date / تاريخ النفاذ والسريان)
+  effectiveDate?: string; // تاريخ النفاذ / السريان
+  startDate?: string; // تاريخ بدء التكليف أو الندب
+  endDate?: string; // تاريخ انتهاء التكليف أو الندب
+  entitlementDate?: string; // تاريخ الاستحقاق
+  decisionDate: string; // تاريخ صدور القرار
+  decisionIssueDate?: string; // تاريخ صدور القرار
+  decisionNumber: string; // رقم القرار
   issuingAuthority: string; // الجهة التي أصدرت القرار
+
+  // Work Location & Transfers
+  workLocation?: string; // مكان العمل
+  previousWorkLocation?: string; // مكان العمل السابق
+  newWorkLocation?: string; // مكان العمل الجديد
+  department?: string; // الإدارة / القسم
+  previousDepartment?: string; // الإدارة / القسم السابق
+  newDepartment?: string; // الإدارة / القسم الجديد
+  previousEntity?: string; // الجهة السابقة
+  newEntity?: string; // الجهة الجديدة
+
+  // Assignments & Roles
+  assignmentTitle?: string; // مسمى التكليف
+  assignmentType?: string; // نوع التكليف (إشرافي، فني، رئاسة قسم، عضوية لجنة، أخرى)
+  assignmentRole?: string; // الدور أو المهام
+  linkedAssignmentId?: string; // معرف التكليف الأصلي المرتبط به (في حالة إنهاء التكليف)
+
+  // Secondments
+  secondmentEntity?: string; // جهة الندب
+  secondmentType?: string; // نوع الندب (محدد المدة، مفتوح / مستمر، تمديد ندب)
+
+  // Job Title Change
+  jobTitle?: string; // المسمى الوظيفي
+  previousJobTitle?: string; // المسمى الوظيفي السابق
+  newJobTitle?: string; // المسمى الوظيفي الجديد
+
+  // Attachments
+  documentId?: string;
+  documentName?: string;
+  documentData?: string;
+
+  competencyEvaluation?: string; // تقرير الكفاءة / التقدير (ممتاز، جيد جداً، جيد، متوسط، ضعيف، غير متوفر)
+  evaluationYear?: number; // سنة تقرير الكفاءة
+  evaluationResult?: string; // نتيجة أو نسبة التقييم
   notes: string;
   createdBy: string;
   createdAt: string;
   updatedBy?: string;
   updatedAt?: string;
 }
+
+// CareerMovement alias for comprehensive career history
+export type CareerMovement = CareerPromotionRecord;
 
 export interface UnlinkedHistoricalCareerRecord {
   id: string;
@@ -374,6 +443,17 @@ export interface CareerSummary {
   statusSettlementsCount: number;      // عدد تسويات الوضع
   secondmentToGradeCount: number;      // عدد مرات الندب على درجة
   transition418Count?: number;         // عدد حركات التحويل من اللائحة 418 إلى نظام الدرجات العامة
+  assignmentsCount?: number;           // إجمالي حركات التكليف
+  transfersCount?: number;             // إجمالي حركات النقل
+  secondmentsCount?: number;           // إجمالي حركات الندب
+  workLocationChangesCount?: number;   // إجمالي حركات تغيير مكان العمل
+  locationChangesCount?: number;       // اسم بديل لتغيير مكان العمل
+  jobTitleChangesCount?: number;       // إجمالي حركات تغيير المسمى الوظيفي
+  currentWorkLocation?: string;        // مكان العمل الحالي المعتمد
+  currentAssignmentTitle?: string;     // مسمى التكليف الحالي المعتمد
+  currentAssignment?: string;          // اسم بديل للتكليف الحالي المعتمد
+  currentDepartmentName?: string;      // الإدارة / القسم الحالي
+  currentDepartment?: string;          // اسم بديل للقسم الحالي
   lastPromotionDate?: string;          // آخر ترقية
   lastAnnualIncrementDate?: string;    // آخر علاوة دورية
   currentGrade: string;                // الدرجة الحالية
@@ -860,7 +940,6 @@ export interface AnnualPerformanceEvaluation {
 export type ActiveTab = 
   | 'dashboard' 
   | 'employees' 
-  | 'search' 
   | 'leaves' 
   | 'promotions' 
   | 'annual_evaluations'

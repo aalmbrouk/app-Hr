@@ -32,8 +32,8 @@ interface DisciplinaryViewProps {
 }
 
 export const DisciplinaryView: React.FC<DisciplinaryViewProps> = ({
-  employees,
-  disciplinaryRecords,
+  employees = [],
+  disciplinaryRecords = [],
   onAddRecord,
   onUpdateRecord,
   onDeleteRecord,
@@ -65,14 +65,14 @@ export const DisciplinaryView: React.FC<DisciplinaryViewProps> = ({
 
   // Filtered list
   const filteredRecords = useMemo(() => {
-    return disciplinaryRecords.filter((d) => {
+    return (disciplinaryRecords || []).filter((d) => {
       const recType = d.recordType || d.actionType || d.penaltyType || '';
       if (selectedTypeFilter !== 'الكل' && recType !== selectedTypeFilter) {
         return false;
       }
       if (!searchQuery.trim()) return true;
       const q = searchQuery.trim().toLowerCase();
-      const emp = employees.find((e) => e.id === d.employeeId);
+      const emp = (employees || []).find((e) => e.id === d.employeeId);
       return (
         d.id.toLowerCase().includes(q) ||
         (d.decisionNumber && d.decisionNumber.toLowerCase().includes(q)) ||
@@ -93,7 +93,7 @@ export const DisciplinaryView: React.FC<DisciplinaryViewProps> = ({
     let penalties = 0;
     let alerts = 0;
 
-    disciplinaryRecords.forEach((d) => {
+    (disciplinaryRecords || []).forEach((d) => {
       const type = (d.recordType || d.actionType || d.penaltyType || '').trim();
       if (type.includes('إنذار')) warnings++;
       else if (type.includes('خصم')) deductions++;

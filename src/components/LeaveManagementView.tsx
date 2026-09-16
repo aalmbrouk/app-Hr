@@ -36,9 +36,9 @@ interface LeaveManagementViewProps {
 }
 
 export const LeaveManagementView: React.FC<LeaveManagementViewProps> = ({
-  employees,
-  leaves,
-  rules,
+  employees = [],
+  leaves = [],
+  rules = [],
   publicHolidaysList = [],
   officialLogoUrl,
   onAddLeave,
@@ -62,8 +62,8 @@ export const LeaveManagementView: React.FC<LeaveManagementViewProps> = ({
   const [statementExportSuccess, setStatementExportSuccess] = useState(false);
 
   // Filtered leaves
-  const filteredLeaves = leaves.filter((l) => {
-    const emp = employees.find((e) => e.id === l.employeeId);
+  const filteredLeaves = (leaves || []).filter((l) => {
+    const emp = (employees || []).find((e) => e.id === l.employeeId);
     const empName = emp ? emp.fullName : '';
     const empFile = emp ? emp.jobNumber : '';
     const matchesSearch = empName.includes(searchQuery) || empFile.includes(searchQuery) || l.id.includes(searchQuery) || l.leaveType.includes(searchQuery);

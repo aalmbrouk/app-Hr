@@ -108,13 +108,14 @@ export function isLeaveTypeDeductible(leaveType: string): boolean {
  */
 export function calculateLeaveSummary(
   employee: Employee, 
-  leaveTransactions: LeaveTransaction[], 
+  leaveTransactions: LeaveTransaction[] = [], 
   rules?: HrRule[]
 ) {
+  const safeLeaves = leaveTransactions || [];
   const serviceYears = calculateBloodBankServiceYears(employee);
   const entitlement = calculateAnnualLeaveEntitlement(serviceYears, rules);
   
-  const approvedLeaves = leaveTransactions.filter(
+  const approvedLeaves = safeLeaves.filter(
     (lt) => lt.employeeId === employee.id && lt.status === 'مقبولة'
   );
 

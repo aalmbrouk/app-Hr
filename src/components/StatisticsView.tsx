@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Employee } from '../types';
 import { BarChart3, Users, Award, Briefcase, Building2, Calendar, UserCheck, UserX, ArrowLeftRight } from 'lucide-react';
 import { isEmployeeActiveInCadre, isOutsideCadreStatus } from '../utils/hrCalculations';
+import { getGenderFromEmployee } from '../utils/nationalIdUtils';
 import { 
   BarChart, 
   Bar, 
@@ -20,18 +21,18 @@ interface StatisticsViewProps {
 
 const PALETTE = ['#8B0000', '#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#7F1D1D'];
 
-export const StatisticsView: React.FC<StatisticsViewProps> = ({ employees }) => {
+export const StatisticsView: React.FC<StatisticsViewProps> = ({ employees = [] }) => {
   // Statistics Computations
   const totalCount = employees.length;
-  const activeInCadreCount = employees.filter((e) => isEmployeeActiveInCadre(e)).length;
-  const outsideCadreCount = employees.filter((e) => isOutsideCadreStatus(e.status)).length;
-  const maleCount = employees.filter((e) => e.gender === 'ذكر').length;
-  const femaleCount = employees.filter((e) => e.gender === 'أنثى').length;
+  const activeInCadreCount = (employees || []).filter((e) => isEmployeeActiveInCadre(e)).length;
+  const outsideCadreCount = (employees || []).filter((e) => isOutsideCadreStatus(e.status)).length;
+  const maleCount = (employees || []).filter((e) => getGenderFromEmployee(e) === 'ذكر').length;
+  const femaleCount = (employees || []).filter((e) => getGenderFromEmployee(e) === 'أنثى').length;
 
   // By Dept
   const deptData = useMemo(() => {
     const map: Record<string, number> = {};
-    employees.forEach((e) => {
+    (employees || []).forEach((e) => {
       const d = e.department.replace('قسم ', '');
       map[d] = (map[d] || 0) + 1;
     });
@@ -41,7 +42,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ employees }) => 
   // By Qualification
   const qualData = useMemo(() => {
     const map: Record<string, number> = {};
-    employees.forEach((e) => {
+    (employees || []).forEach((e) => {
       const q = (e.qualification || 'غير محدد').split('/')[0].trim();
       map[q] = (map[q] || 0) + 1;
     });

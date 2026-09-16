@@ -40,35 +40,35 @@ interface TimelineEvent {
 }
 
 interface EmployeeHistoryViewProps {
-  employees: Employee[];
-  leaves: LeaveTransaction[];
-  promotions: PromotionRecord[];
-  increments: IncrementRecord[];
-  secondments: SecondmentRecord[];
-  transfers: TransferRecord[];
-  disciplinary: DisciplinaryRecord[];
-  resignations: ResignationRecord[];
-  settlements: StatusSettlementRecord[];
+  employees?: Employee[];
+  leaves?: LeaveTransaction[];
+  promotions?: PromotionRecord[];
+  increments?: IncrementRecord[];
+  secondments?: SecondmentRecord[];
+  transfers?: TransferRecord[];
+  disciplinary?: DisciplinaryRecord[];
+  resignations?: ResignationRecord[];
+  settlements?: StatusSettlementRecord[];
   careerRecords?: CareerPromotionRecord[];
 }
 
 export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
-  employees,
-  leaves,
-  promotions,
-  increments,
-  secondments,
-  transfers,
-  disciplinary,
-  resignations,
-  settlements,
+  employees = [],
+  leaves = [],
+  promotions = [],
+  increments = [],
+  secondments = [],
+  transfers = [],
+  disciplinary = [],
+  resignations = [],
+  settlements = [],
   careerRecords = []
 }) => {
   const [selectedEmpId, setSelectedEmpId] = useState<number>(employees[0]?.id || 1001);
   const [filterType, setFilterType] = useState<string>('all');
   const [isCareerReportOpen, setIsCareerReportOpen] = useState(false);
 
-  const selectedEmp = employees.find((e) => e.id === selectedEmpId) || employees[0];
+  const selectedEmp = (employees || []).find((e) => e.id === selectedEmpId) || employees[0];
 
   // Construct comprehensive chronological timeline
   const timelineEvents = useMemo(() => {
@@ -103,7 +103,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
     }
 
     // 3. Secondment to Grade (ندب على درجة) and custom career records
-    careerRecords
+    (careerRecords || [])
       .filter((c) => c.employeeId === selectedEmp.id)
       .forEach((c) => {
         if (c.actionType === 'ندب على درجة') {
@@ -120,7 +120,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 4. Promotions
-    promotions
+    (promotions || [])
       .filter((p) => p.employeeId === selectedEmp.id)
       .forEach((p) => {
         events.push({
@@ -135,7 +135,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 5. Increments
-    increments
+    (increments || [])
       .filter((i) => i.employeeId === selectedEmp.id)
       .forEach((i) => {
         events.push({
@@ -150,7 +150,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 6. Settlements
-    settlements
+    (settlements || [])
       .filter((s) => s.employeeId === selectedEmp.id)
       .forEach((s) => {
         events.push({
@@ -165,7 +165,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 7. Secondments
-    secondments
+    (secondments || [])
       .filter((sec) => sec.employeeId === selectedEmp.id)
       .forEach((sec) => {
         events.push({
@@ -180,7 +180,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 8. Transfers
-    transfers
+    (transfers || [])
       .filter((t) => t.employeeId === selectedEmp.id)
       .forEach((t) => {
         events.push({
@@ -195,7 +195,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 9. Leaves
-    leaves
+    (leaves || [])
       .filter((l) => l.employeeId === selectedEmp.id)
       .forEach((l) => {
         events.push({
@@ -210,7 +210,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 10. Disciplinary
-    disciplinary
+    (disciplinary || [])
       .filter((d) => d.employeeId === selectedEmp.id)
       .forEach((d) => {
         events.push({
@@ -225,7 +225,7 @@ export const EmployeeHistoryView: React.FC<EmployeeHistoryViewProps> = ({
       });
 
     // 11. Resignations / End of Service
-    resignations
+    (resignations || [])
       .filter((r) => r.employeeId === selectedEmp.id)
       .forEach((r) => {
         events.push({

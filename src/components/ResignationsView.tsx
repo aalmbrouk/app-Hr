@@ -38,8 +38,8 @@ interface ResignationsViewProps {
 }
 
 export const ResignationsView: React.FC<ResignationsViewProps> = ({
-  employees,
-  resignations,
+  employees = [],
+  resignations = [],
   onAddResignation,
   onUpdateEmployeeStatus,
   onRevertResignation,
@@ -89,38 +89,38 @@ export const ResignationsView: React.FC<ResignationsViewProps> = ({
 
   // Currently selected employee object in Transfer Form
   const selectedTransferEmployee = useMemo(() => {
-    return employees.find(e => e.id === tEmpId) || employees[0];
+    return (employees || []).find(e => e.id === tEmpId) || employees[0];
   }, [employees, tEmpId]);
 
   // Currently selected employee object in Resignation Form
   const selectedResignEmployee = useMemo(() => {
-    return employees.find(e => e.id === rEmpId) || employees[0];
+    return (employees || []).find(e => e.id === rEmpId) || employees[0];
   }, [employees, rEmpId]);
 
   // Statistics
   const outsideCadreEmployees = useMemo(() => {
-    return employees.filter(e => isOutsideCadreStatus(e.status));
+    return (employees || []).filter(e => isOutsideCadreStatus(e.status));
   }, [employees]);
 
   const activeCadreEmployees = useMemo(() => {
-    return employees.filter(e => !isOutsideCadreStatus(e.status));
+    return (employees || []).filter(e => !isOutsideCadreStatus(e.status));
   }, [employees]);
 
   const transferredOutCount = useMemo(() => {
-    return employees.filter(e => e.status === 'منقول خارجياً').length;
+    return (employees || []).filter(e => e.status === 'منقول خارجياً').length;
   }, [employees]);
 
   const resignedCount = useMemo(() => {
-    return employees.filter(e => e.status === 'مستقيل').length;
+    return (employees || []).filter(e => e.status === 'مستقيل').length;
   }, [employees]);
 
   const retiredOrTerminatedCount = useMemo(() => {
-    return employees.filter(e => e.status === 'منهي خدماته' || e.status === 'متقاعد' || e.status === 'متوفى').length;
+    return (employees || []).filter(e => e.status === 'منهي خدماته' || e.status === 'متقاعد' || e.status === 'متوفى').length;
   }, [employees]);
 
   // Filtered Resignation & External Transfer Records
   const filteredRecords = useMemo(() => {
-    return resignations.filter((r) => {
+    return (resignations || []).filter((r) => {
       // Sub-tab filter
       if (activeSubTab === 'transfer_out' && r.finalStatus !== 'منقول خارجياً' && r.actionType !== 'نقل خارجي') return false;
       if (activeSubTab === 'resignation' && r.finalStatus !== 'مستقيل' && r.actionType !== 'استقالة') return false;
@@ -129,7 +129,7 @@ export const ResignationsView: React.FC<ResignationsViewProps> = ({
 
       if (!searchQuery.trim()) return true;
       const q = searchQuery.trim().toLowerCase();
-      const emp = employees.find(e => e.id === r.employeeId);
+      const emp = (employees || []).find(e => e.id === r.employeeId);
 
       return (
         r.id.toLowerCase().includes(q) ||

@@ -155,17 +155,17 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
     .sort((a, b) => b.evaluationYear - a.evaluationYear);
 
   // Filter leaves for this employee
-  const employeeLeaves = leaves.filter((l) => l.employeeId === employee.id);
+  const employeeLeaves = (leaves || []).filter((l) => l.employeeId === employee.id);
 
   // Filter qualifications for this employee
-  const employeeQuals = qualifications.filter((q) => q.employeeId === employee.id);
+  const employeeQuals = (qualifications || []).filter((q) => q.employeeId === employee.id);
 
   // Filter transfers, secondments, disciplinary, and procedures
-  const employeeTransfers = transfers.filter((t) => t.employeeId === employee.id);
-  const employeeSecondments = secondments.filter((s) => s.employeeId === employee.id);
-  const employeeDisciplinary = disciplinary.filter((d) => d.employeeId === employee.id);
-  const employeeProcedures = generalProcedures.filter((p) => p.employeeId === employee.id);
-  const employeeResignations = resignations.filter((r) => r.employeeId === employee.id);
+  const employeeTransfers = (transfers || []).filter((t) => t.employeeId === employee.id);
+  const employeeSecondments = (secondments || []).filter((s) => s.employeeId === employee.id);
+  const employeeDisciplinary = (disciplinary || []).filter((d) => d.employeeId === employee.id);
+  const employeeProcedures = (generalProcedures || []).filter((p) => p.employeeId === employee.id);
+  const employeeResignations = (resignations || []).filter((r) => r.employeeId === employee.id);
 
   // Unified Career History
   const fullCareerHistory = getEmployeeCareerHistory(
@@ -867,7 +867,7 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
           </div>
         )}
 
-        {/* 4. CAREER PROMOTIONS & INCREMENTS TAB (بيانات الترقيات الوظيفية المدمجة) */}
+        {/* 4. CAREER PROMOTIONS & INCREMENTS TAB (بيانات المسار الوظيفي والحركات الشاملة) */}
         {activeTab === 'career_promotions' && (
           <div className="space-y-3.5">
             {/* Header with Print and Actions */}
@@ -875,7 +875,7 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
               <div>
                 <h4 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-slate-700" />
-                  <span>بيانات الترقيات والعلاوات الوظيفية والندب على درجة ({fullCareerHistory.length} إجراء)</span>
+                  <span>سجل المسار المهني والحركات الوظيفية الشاملة ({fullCareerHistory.length} حركة مسجلة)</span>
                 </h4>
                 <p className="text-[11px] text-slate-600 mt-0.5">
                   الدرجة الحالية: <strong className="text-slate-900">{employee.jobGrade}</strong> | رصيد العلاوات: <strong className="text-slate-900">+{employee.currentIncrement || 1} علاوة</strong> | تاريخ الاستحقاق: <span className="font-mono font-bold text-slate-900">{formatDateDisplay(employee.eligibilityDate)}</span>
@@ -889,7 +889,7 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
                   className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5 text-slate-300" />
-                  <span>طباعة سجل المسار المهني</span>
+                  <span>طباعة سجل المسار المهني الشامل</span>
                 </button>
 
                 <button
@@ -903,10 +903,49 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
               </div>
             </div>
 
+            {/* Current Executive State Strip (Location, Assignment, Department) */}
+            <div className="bg-gradient-to-l from-slate-900 to-slate-800 text-white p-3.5 rounded-xl shadow-xs grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+                  <Building2 className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-300 block">مقر العمل الحالي المعتمد:</span>
+                  <strong className="text-emerald-300 font-bold text-xs">
+                    {careerSummary.currentWorkLocation || employee.workLocation || 'مصرف الدم المركزي المرج'}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 border-r border-slate-700/80 pr-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-300 block">التكليف الإداري القائم:</span>
+                  <strong className="text-indigo-200 font-bold text-xs">
+                    {careerSummary.currentAssignment || 'لا يوجد تكليف قائم (العمل الاعتيادي)'}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 border-r border-slate-700/80 pr-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center shrink-0">
+                  <Award className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-300 block">الإدارة / القسم الحالي:</span>
+                  <strong className="text-amber-200 font-bold text-xs">
+                    {careerSummary.currentDepartment || employee.department}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
             {/* Summary Statistics Breakdown Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-500 block mb-1">الترقيات الدورية</span>
+                <span className="text-slate-500 block mb-1">الترقيات</span>
                 <span className="font-bold text-slate-900 text-sm">{careerSummary.promotionsCount}</span>
               </div>
 
@@ -916,18 +955,23 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
               </div>
 
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-500 block mb-1">ترقيات استثنائية</span>
-                <span className="font-bold text-slate-900 text-sm">{careerSummary.exceptionalPromotionsCount}</span>
+                <span className="text-slate-500 block mb-1">التكليفات والمهام</span>
+                <span className="font-bold text-indigo-950 text-sm">{careerSummary.assignmentsCount}</span>
               </div>
 
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-500 block mb-1">تسويات الوضع</span>
-                <span className="font-bold text-slate-900 text-sm">{careerSummary.statusSettlementsCount}</span>
+                <span className="text-slate-500 block mb-1">النقل ومقر العمل</span>
+                <span className="font-bold text-emerald-950 text-sm">{careerSummary.transfersCount + careerSummary.locationChangesCount}</span>
               </div>
 
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-500 block mb-1">الندب على درجة</span>
-                <span className="font-bold text-slate-900 text-sm">{careerSummary.secondmentToGradeCount}</span>
+                <span className="text-slate-500 block mb-1">الندب والإعارة</span>
+                <span className="font-bold text-amber-950 text-sm">{careerSummary.secondmentsCount + careerSummary.secondmentToGradeCount}</span>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-slate-500 block mb-1">تسويات ومسميات</span>
+                <span className="font-bold text-purple-950 text-sm">{careerSummary.statusSettlementsCount + careerSummary.jobTitleChangesCount}</span>
               </div>
             </div>
 
@@ -966,12 +1010,12 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
             {/* Unified Chronological Career History Table / Cards */}
             <div className="space-y-2">
               <h5 className="font-bold text-xs text-slate-900">
-                السجل الزمني التراكمي لقرارات المسار الوظيفي ({fullCareerHistory.length} إجراء مسجل)
+                السجل الزمني التراكمي لقرارات وحركات المسار الوظيفي ({fullCareerHistory.length} حركة مسجلة)
               </h5>
 
               {fullCareerHistory.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-xs border border-slate-200 rounded-lg bg-slate-50/50">
-                  لا توجد قرارات ترقية أو ندب على درجة أو تسوية سابقة مسجلة للموظف (الموظف على الدرجة المعين عليها أو التسوية المعتمدة).
+                  لا توجد قرارات ترقية أو حركات وظيفية سابقة مسجلة للموظف (الموظف على الدرجة المعين عليها أو التسوية المعتمدة).
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -985,27 +1029,44 @@ export const EmployeeDetailsAccordion: React.FC<EmployeeDetailsAccordionProps> =
                               {rec.actionType}
                             </span>
                             <span className="font-bold text-slate-900">
-                              {rec.actionType === 'علاوة دورية' 
-                                ? `منح علاوة سنوية (${rec.newIncrement})`
-                                : `${rec.newGrade} (علاوة ${rec.newIncrement})`
-                              }
+                              {rec.assignmentTitle ? (
+                                <span className="text-indigo-950 font-black">{rec.assignmentTitle} {rec.assignmentType && `(${rec.assignmentType})`}</span>
+                              ) : rec.newWorkLocation ? (
+                                <span className="text-emerald-950 font-black">مقر العمل: {rec.newWorkLocation} {rec.previousWorkLocation && `(من: ${rec.previousWorkLocation})`}</span>
+                              ) : rec.secondmentEntity ? (
+                                <span className="text-amber-950 font-black">ندب إلى: {rec.secondmentEntity} {rec.secondmentType && `(${rec.secondmentType})`}</span>
+                              ) : rec.newJobTitle ? (
+                                <span className="text-purple-950 font-black">المسمى الجديد: {rec.newJobTitle} {rec.previousJobTitle && `(السابق: ${rec.previousJobTitle})`}</span>
+                              ) : rec.actionType === 'علاوة دورية' ? (
+                                `منح علاوة سنوية (${rec.newIncrement})`
+                              ) : (
+                                `${rec.newGrade} (علاوة ${rec.newIncrement})`
+                              )}
                             </span>
                           </div>
                           <div className="text-slate-500 text-[11px] mt-1">
-                            القرار: <strong className="text-slate-700">{rec.decisionNumber || 'غير محدد'}</strong> | التاريخ: <span className="font-mono text-slate-800">{formatDateDisplay(rec.actionDate || rec.decisionDate)}</span>
+                            القرار: <strong className="text-slate-700">{rec.decisionNumber || 'غير محدد'}</strong> | تاريخ السريان: <span className="font-mono text-slate-800 font-bold">{formatDateDisplay(rec.actionDate || rec.decisionDate)}</span>
                             {rec.issuingAuthority && ` | الجهة المصدرة: ${rec.issuingAuthority}`}
+                            {rec.startDate && ` | من: ${formatDateDisplay(rec.startDate)}`}
+                            {rec.endDate && ` | إلى: ${formatDateDisplay(rec.endDate)}`}
+                            {rec.assignmentRole && ` | المهام: ${rec.assignmentRole}`}
                             {rec.notes && ` | ${rec.notes}`}
                           </div>
                         </div>
 
                         <div className="text-left">
-                          {rec.previousGrade && rec.previousGrade !== rec.newGrade && (
-                            <span className="text-[11px] text-slate-600 font-bold block">
-                              من: {rec.previousGrade}
+                          {rec.newGrade && (
+                            <span className="text-[11px] font-bold text-slate-700 block">
+                              الدرجة: {rec.newGrade} {rec.newIncrement !== undefined && `(علاوة ${rec.newIncrement})`}
                             </span>
                           )}
-                          <span className="font-mono text-[11px] text-slate-400">
-                            {formatDateDisplay(rec.decisionDate)}
+                          {rec.previousGrade && rec.previousGrade !== rec.newGrade && (
+                            <span className="text-[10px] text-slate-500 block">
+                              السابقة: {rec.previousGrade}
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] text-slate-400 block">
+                            قرار: {formatDateDisplay(rec.decisionDate)}
                           </span>
                         </div>
                       </div>
