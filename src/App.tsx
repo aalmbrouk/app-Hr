@@ -526,6 +526,86 @@ export default function App() {
     );
   };
 
+  const handleAddCareerRecords = (records: CareerPromotionRecord[]) => {
+    if (!records || records.length === 0) return;
+    const nextCareerRecords = [...records, ...careerRecords];
+    setCareerRecords(nextCareerRecords);
+
+    const newPromos: PromotionRecord[] = [];
+    const newIncs: IncrementRecord[] = [];
+    const newSetts: StatusSettlementRecord[] = [];
+
+    records.forEach((record) => {
+      if (record.actionType === 'ترقية' || record.actionType === 'ترقية استثنائية') {
+        newPromos.push({
+          id: record.id,
+          employeeId: record.employeeId,
+          fileNumber: record.fileNumber,
+          previousGrade: record.previousGrade,
+          previousIncrement: record.previousIncrement,
+          newGrade: record.newGrade,
+          newIncrement: record.newIncrement,
+          promotionType: record.actionType === 'ترقية استثنائية' ? 'ترقية استثنائية' : 'ترقية عادية',
+          decisionNumber: record.decisionNumber,
+          decisionDate: record.decisionDate,
+          effectiveDate: record.actionDate,
+          reason: record.notes || 'ترقية مسجلة بالمنظومة',
+          notes: record.notes,
+          createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
+          createdAt: record.createdAt
+        });
+      } else if (record.actionType === 'علاوة دورية' || record.actionType === 'علاوة سنوية') {
+        newIncs.push({
+          id: record.id,
+          employeeId: record.employeeId,
+          fileNumber: record.fileNumber,
+          previousGrade: record.previousGrade,
+          previousIncrement: record.previousIncrement,
+          newGrade: record.newGrade || record.previousGrade,
+          newIncrement: record.newIncrement,
+          incrementType: 'علاوة دورية',
+          decisionNumber: record.decisionNumber,
+          decisionDate: record.decisionDate,
+          effectiveDate: record.actionDate,
+          date: record.actionDate,
+          notes: record.notes,
+          createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
+          createdAt: record.createdAt
+        });
+      } else if (record.actionType === 'تسوية وضع') {
+        newSetts.push({
+          id: record.id,
+          employeeId: record.employeeId,
+          financialStatus: 'تسوية وضع وظيفي',
+          grade: record.newGrade,
+          jobTitle: 'تسوية مؤهل',
+          effectiveDate: record.actionDate,
+          decisionNumber: record.decisionNumber,
+          reason: record.notes || 'تسوية وضع',
+          notes: record.notes,
+          createdBy: currentUser?.displayName || currentUser?.username || 'المستخدم',
+          createdAt: record.createdAt
+        });
+      }
+    });
+
+    if (newPromos.length > 0) {
+      setPromotions((prev) => [...newPromos, ...prev]);
+    }
+    if (newIncs.length > 0) {
+      setIncrements((prev) => [...newIncs, ...prev]);
+    }
+    if (newSetts.length > 0) {
+      setSettlements((prev) => [...newSetts, ...prev]);
+    }
+
+    logAction(
+      'إضافة', 
+      `تسجيل (${records.length}) درجات/حركات وظيفية بينية للموظف (${records[0].employeeName || records[0].employeeId})`, 
+      records[0].employeeId
+    );
+  };
+
   const handleUpdateCareerRecord = (updatedRecord: CareerPromotionRecord) => {
     const prevRec = careerRecords.find((r) => r.id === updatedRecord.id);
     const nextCareerRecords = careerRecords.map((r) => (r.id === updatedRecord.id ? updatedRecord : r));
@@ -1020,6 +1100,7 @@ export default function App() {
               onSaveEvaluation={handleSaveAnnualEvaluation}
               onDeleteEvaluation={handleDeleteAnnualEvaluation}
               onAddCareerRecord={handleAddCareerRecord}
+              onAddCareerRecords={handleAddCareerRecords}
               onUpdateCareerRecord={handleUpdateCareerRecord}
               onDeleteCareerRecord={handleDeleteCareerRecord}
               onImportComplete={handleImportMigrationResult}

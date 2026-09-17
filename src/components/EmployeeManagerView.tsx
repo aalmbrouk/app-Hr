@@ -18,7 +18,9 @@ import {
   ResignationRecord,
   AnnualPerformanceEvaluation,
   AppointmentSalarySystem,
-  AppointmentGradeConfig
+  AppointmentGradeConfig,
+  CareerActionType,
+  IntermediateCareerStep
 } from '../types';
 import { 
   APPOINTMENT_SALARY_SYSTEMS, 
@@ -89,7 +91,8 @@ import {
   Info,
   ClipboardCheck,
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 
 interface EmployeeManagerViewProps {
@@ -129,6 +132,7 @@ interface EmployeeManagerViewProps {
   onSaveEvaluation?: (evaluation: AnnualPerformanceEvaluation) => void;
   onDeleteEvaluation?: (id: string) => void;
   onAddCareerRecord?: (record: CareerPromotionRecord) => void;
+  onAddCareerRecords?: (records: CareerPromotionRecord[]) => void;
   onUpdateCareerRecord?: (record: CareerPromotionRecord) => void;
   onDeleteCareerRecord?: (id: string) => void;
   onImportComplete?: (result: MigrationCommitResult) => void;
@@ -175,6 +179,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
   onSaveEvaluation,
   onDeleteEvaluation,
   onAddCareerRecord,
+  onAddCareerRecords,
   onUpdateCareerRecord,
   onDeleteCareerRecord,
   onImportComplete,
@@ -225,6 +230,8 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
   const [isFormOpen, setIsFormOpen] = useState<boolean>(onOpenAddModal);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [intermediateGrades, setIntermediateGrades] = useState<IntermediateCareerStep[]>([]);
+  const [deletedIntermediateIds, setDeletedIntermediateIds] = useState<string[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(!!openExcelModal);
   const [isListPrintModalOpen, setIsListPrintModalOpen] = useState<boolean>(false);
   const [isFilteredReportModalOpen, setIsFilteredReportModalOpen] = useState<boolean>(false);
@@ -801,8 +808,94 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
       pdfFileName: '',
       notes: ''
     });
+    setIntermediateGrades([]);
+    setDeletedIntermediateIds([]);
     setIsFormOpen(true);
   };
+
+  // Helper to add an intermediate career step
+  const handleAddIntermediateStep = () => {
+    const prevStepGrade = intermediateGrades.length > 0 
+      ? intermediateGrades[intermediateGrades.length - 1].grade 
+      : (editingEmp?.appointmentGrade || '');
+    
+    let suggestedGrade = '';
+    const prevNum = parseGradeNumber(prevStepGrade);
+    if (prevNum && prevNum > 1) {
+      const nextNum = prevNum - 1;
+      if (nextNum >= 1 && nextNum <= 15) {
+        suggestedGrade = JOB_GRADES[nextNum - 1] || '';
+      }
+    }
+    if (!suggestedGrade && JOB_GRADES.length > 0) {
+      suggestedGrade = JOB_GRADES[0];
+    }
+
+    const newStep: IntermediateCareerStep = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      grade: suggestedGrade,
+      movementType: 'ترقية',
+      previousGrade: prevStepGrade,
+      decisionNumber: '',
+      decisionDate: '',
+      effectiveDate: editingEmp?.hireDate || '',
+      entitlementDate: '',
+      issuingAuthority: 'مصرف الدم المركزي المرج',
+      notes: ''
+    };
+
+    setIntermediateGrades((prev) => [...prev, newStep]);
+  };
+
+  const handleRemoveIntermediateStep = (indexToRemove: number) => {
+    setIntermediateGrades((prev) => {
+      const target = prev[indexToRemove];
+      if (target && target.id && !target.id.startsWith('temp-')) {
+        setDeletedIntermediateIds((d) => [...d, target.id]);
+      }
+      return prev.filter((_, idx) => idx !== indexToRemove);
+    });
+  };
+
+  const handleUpdateIntermediateStep = (index: number, updates: Partial<IntermediateCareerStep>) => {
+    setIntermediateGrades((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...updates };
+      return next;
+    });
+  };
+
+  // Real-time career sequence warnings for non-sequential jumps or demotions
+  const sequenceWarnings = useMemo(() => {
+    if (!editingEmp) return [];
+    const steps: { name: string; grade: string; type?: string }[] = [];
+    if (editingEmp.appointmentGrade) {
+      steps.push({ name: 'درجة التعيين', grade: editingEmp.appointmentGrade });
+    }
+    intermediateGrades.forEach((g, idx) => {
+      steps.push({ name: `الدرجة البينية (${idx + 1})`, grade: g.grade, type: g.movementType });
+    });
+    if (editingEmp.jobGrade) {
+      steps.push({ name: 'الدرجة الحالية', grade: editingEmp.jobGrade });
+    }
+
+    const warnings: string[] = [];
+    for (let i = 0; i < steps.length - 1; i++) {
+      const from = steps[i];
+      const to = steps[i + 1];
+      const numA = parseGradeNumber(from.grade);
+      const numB = parseGradeNumber(to.grade);
+
+      if (numA > 0 && numB > 0) {
+        if (numA - numB > 1) {
+          warnings.push(`تنبيه تسلسل: قفزة غير اعتيادية من ${from.name} (${from.grade}) إلى ${to.name} (${to.grade}) بمقدار ${numA - numB} درجات.`);
+        } else if (numA < numB) {
+          warnings.push(`تنبيه تسلسل: انخفاض غير اعتيادي في الدرجة من ${from.name} (${from.grade}) إلى ${to.name} (${to.grade}).`);
+        }
+      }
+    }
+    return warnings;
+  }, [editingEmp?.appointmentGrade, editingEmp?.jobGrade, intermediateGrades]);
 
   // Normalize grade to valid options
   const normalizeGradeToOption = (rawGrade?: string): string => {
@@ -839,6 +932,24 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
       appointmentGrade: emp.appointmentGrade || 'الدرجة السادسة',
       appointmentIncrements: emp.appointmentIncrements ?? 0
     });
+
+    const empCareer = (careerRecords || []).filter((c) => c.employeeId === emp.id);
+    const existingSteps: IntermediateCareerStep[] = empCareer
+      .filter((c) => c.newGrade && c.newGrade !== emp.appointmentGrade && c.newGrade !== emp.jobGrade)
+      .map((c) => ({
+        id: c.id,
+        grade: c.newGrade || '',
+        movementType: (c.actionType as CareerActionType) || 'ترقية',
+        previousGrade: c.previousGrade || '',
+        decisionNumber: c.decisionNumber || '',
+        decisionDate: c.decisionDate || '',
+        effectiveDate: c.actionDate || c.effectiveDate || '',
+        entitlementDate: c.entitlementDate || '',
+        issuingAuthority: c.issuingAuthority || '',
+        notes: c.notes || ''
+      }));
+    setIntermediateGrades(existingSteps);
+    setDeletedIntermediateIds([]);
     setIsFormOpen(true);
   };
 
@@ -933,8 +1044,70 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
       onAddEmployee(payload);
     }
 
+    // Save Intermediate Career Steps as CareerPromotionRecords
+    if (intermediateGrades.length > 0) {
+      const existingCareerIds = new Set((careerRecords || []).map((c) => c.id));
+      const newRecordsToSave: CareerPromotionRecord[] = [];
+
+      intermediateGrades.forEach((step, idx) => {
+        const prevGradeForStep = idx === 0 
+          ? (payload.appointmentGrade || '') 
+          : intermediateGrades[idx - 1].grade;
+
+        const recordId = step.id && !step.id.startsWith('temp-') 
+          ? step.id 
+          : `career-step-${payload.id}-${Date.now()}-${idx}`;
+
+        const record: CareerPromotionRecord = {
+          id: recordId,
+          employeeId: payload.id,
+          fileNumber: payload.jobNumber || '',
+          employeeName: payload.fullName || '',
+          nationalId: payload.nationalId || '',
+          actionType: step.movementType || 'ترقية',
+          movementType: step.movementType || 'ترقية',
+          previousGrade: step.previousGrade || prevGradeForStep,
+          previousIncrement: 0,
+          newGrade: step.grade,
+          newIncrement: 1,
+          actionDate: step.effectiveDate || payload.hireDate || new Date().toISOString().slice(0, 10),
+          decisionDate: step.decisionDate || step.effectiveDate || payload.hireDate || '',
+          decisionNumber: step.decisionNumber || `قرار ترقية رقم (${idx + 1})`,
+          issuingAuthority: step.issuingAuthority || 'مصرف الدم المركزي المرج',
+          notes: step.notes || `تدرج وظيفي بيني (${step.grade})`,
+          createdBy: currentUser || 'المستخدم',
+          createdAt: new Date().toISOString()
+        };
+
+        if (existingCareerIds.has(step.id)) {
+          if (onUpdateCareerRecord) {
+            onUpdateCareerRecord(record);
+          }
+        } else {
+          newRecordsToSave.push(record);
+        }
+      });
+
+      if (newRecordsToSave.length > 0) {
+        if (onAddCareerRecords) {
+          onAddCareerRecords(newRecordsToSave);
+        } else if (onAddCareerRecord) {
+          newRecordsToSave.forEach((r) => onAddCareerRecord(r));
+        }
+      }
+    }
+
+    // Process deleted intermediate records if any
+    if (deletedIntermediateIds.length > 0 && onDeleteCareerRecord) {
+      deletedIntermediateIds.forEach((delId) => {
+        onDeleteCareerRecord(delId);
+      });
+    }
+
     setIsFormOpen(false);
     setFormError(null);
+    setIntermediateGrades([]);
+    setDeletedIntermediateIds([]);
     setExpandedEmpId(payload.id);
   };
 
@@ -2504,6 +2677,212 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Intermediate Career Steps (Optional) */}
+                <div className="space-y-3">
+                  {/* Add Button & Connecting Divider */}
+                  <div className="relative flex items-center justify-center my-1">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-dashed border-slate-300"></div>
+                    </div>
+                    <div className="relative flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-xs">
+                      <button
+                        type="button"
+                        id="btn-add-intermediate-step"
+                        onClick={handleAddIntermediateStep}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer hover:shadow"
+                        title="إضافة درجة وظيفية بينية بين درجة التعيين والدرجة الحالية"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ إضافة درجة وظيفية بينية (اختياري)</span>
+                      </button>
+                      {intermediateGrades.length > 0 && (
+                        <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          {intermediateGrades.length} {intermediateGrades.length === 1 ? 'درجة بينية' : 'درجات بينية'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sequence Warnings Banner */}
+                  {sequenceWarnings.length > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-1 text-xs text-amber-900">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>ملاحظات تسلسل التدرج الوظيفي:</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-800 pr-2">
+                        {sequenceWarnings.map((warn, wIdx) => (
+                          <li key={wIdx}>{warn}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] text-amber-700 mt-1">
+                        * يُسمح بمتابعة الحفظ في حال كانت الترقية استثنائية أو تسوية وضع رسمية وفق قرارات معتمدة.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Intermediate Steps Cards */}
+                  {intermediateGrades.map((step, idx) => {
+                    const prevGradeForThis = idx === 0 ? (editingEmp.appointmentGrade || 'التعيين') : (intermediateGrades[idx - 1].grade || '—');
+                    const nextGradeForThis = idx === intermediateGrades.length - 1 ? (editingEmp.jobGrade || 'الحالية') : (intermediateGrades[idx + 1].grade || '—');
+
+                    return (
+                      <div 
+                        key={step.id || idx} 
+                        className="bg-white p-3.5 rounded-xl border-2 border-emerald-200 shadow-2xs space-y-3 relative"
+                      >
+                        {/* Step Header */}
+                        <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                            <span className="font-black text-xs text-emerald-950">
+                              درجة وظيفية بينية ({idx + 1} من {intermediateGrades.length})
+                            </span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                              <span>{prevGradeForThis}</span>
+                              <span>←</span>
+                              <span className="font-extrabold text-emerald-900">{step.grade || '—'}</span>
+                              <span>←</span>
+                              <span>{nextGradeForThis}</span>
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            id={`btn-remove-intermediate-step-${idx}`}
+                            onClick={() => handleRemoveIntermediateStep(idx)}
+                            className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg border border-red-200 hover:border-red-600 transition flex items-center gap-1 text-xs cursor-pointer"
+                            title="حذف هذه الدرجة البينية"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-[11px] font-bold">حذف الخطوة</span>
+                          </button>
+                        </div>
+
+                        {/* Step Fields Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {/* Grade Selector */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              الدرجة الوظيفية *
+                            </label>
+                            <select
+                              value={step.grade}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { grade: e.target.value })}
+                              className="w-full p-2 border rounded-lg font-bold text-emerald-950 bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            >
+                              {JOB_GRADES.map((g) => (
+                                <option key={g} value={g}>{g}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Action / Movement Type */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              نوع الحركة الوظيفية *
+                            </label>
+                            <select
+                              value={step.movementType || 'ترقية'}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { movementType: e.target.value as CareerActionType })}
+                              className="w-full p-2 border rounded-lg font-bold text-gray-900 bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            >
+                              <option value="ترقية">ترقية عادية</option>
+                              <option value="ترقية استثنائية">ترقية استثنائية</option>
+                              <option value="تسوية وضع">تسوية وضع</option>
+                              <option value="تحويل من اللائحة 418 إلى نظام الدرجات العامة">تحويل من اللائحة 418 إلى نظام الدرجات العامة</option>
+                              <option value="ندب على درجة">ندب على درجة</option>
+                              <option value="إجراء وظيفي رسمي آخر">إجراء وظيفي رسمي آخر</option>
+                            </select>
+                          </div>
+
+                          {/* Effective Date */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              تاريخ النفاذ والسريان
+                            </label>
+                            <input
+                              type="date"
+                              value={step.effectiveDate || ''}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { effectiveDate: e.target.value })}
+                              className="w-full p-2 border rounded-lg bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            />
+                          </div>
+
+                          {/* Decision Number */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              رقم القرار
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="مثال: ق/2018/142"
+                              value={step.decisionNumber || ''}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { decisionNumber: e.target.value })}
+                              className="w-full p-2 border rounded-lg bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            />
+                          </div>
+
+                          {/* Decision Date */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              تاريخ صدور القرار
+                            </label>
+                            <input
+                              type="date"
+                              value={step.decisionDate || ''}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { decisionDate: e.target.value })}
+                              className="w-full p-2 border rounded-lg bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            />
+                          </div>
+
+                          {/* Issuing Authority */}
+                          <div>
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              جهة إصدار القرار
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="وزارة الصحة / مصرف الدم..."
+                              value={step.issuingAuthority || ''}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { issuingAuthority: e.target.value })}
+                              className="w-full p-2 border rounded-lg bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            />
+                          </div>
+
+                          {/* Notes */}
+                          <div className="sm:col-span-2 md:col-span-3">
+                            <label className="block font-bold text-gray-700 mb-1 text-xs">
+                              ملاحظات أو سبب الترقية
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="أسباب الترقية، كفاءة، تسوية مؤهل، إلخ..."
+                              value={step.notes || ''}
+                              onChange={(e) => handleUpdateIntermediateStep(idx, { notes: e.target.value })}
+                              className="w-full p-2 border rounded-lg bg-white box-border focus:ring-2 focus:ring-emerald-600 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Button to add another step if some already exist */}
+                  {intermediateGrades.length > 0 && (
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={handleAddIntermediateStep}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ إضافة درجة بينية أخرى</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Subsection B: الوضع الوظيفي والمالي الحالي */}

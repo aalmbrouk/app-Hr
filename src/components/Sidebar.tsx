@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSecondaryActive = secondaryModuleItems.some((item) => item.id === activeTab);
 
   return (
-    <aside className="w-full md:w-64 bg-white border-l border-slate-200 text-slate-800 flex-shrink-0 min-h-[calc(100vh-68px)] shadow-xs" dir="rtl">
+    <aside className="w-full md:w-[268px] bg-white border-l border-slate-200 text-slate-800 flex-shrink-0 min-h-[calc(100vh-68px)] shadow-xs" dir="rtl">
       <div className="p-3">
         {/* Primary Navigation Section */}
         <div className="mb-3">
@@ -176,12 +176,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.2 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[16px] transition-all cursor-pointer group ${
                     isActive
-                      ? 'bg-slate-900 text-white font-black shadow-xs border-r-4 border-teal-500'
+                      ? 'bg-slate-900 text-white font-bold shadow-xs border-r-4 border-teal-500'
                       : isEvaluation
-                      ? 'text-teal-900 bg-teal-50/60 hover:bg-teal-100/70 border border-teal-200/60'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'text-teal-900 bg-teal-50/60 hover:bg-teal-100/70 border border-teal-200/60 font-medium'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -199,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   {item.badge && (
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold flex-shrink-0 ${
+                      className={`text-[11px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${
                         isActive
                           ? 'bg-white/20 text-teal-200'
                           : isEvaluation
@@ -249,10 +249,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer group ${
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[15.5px] transition-all cursor-pointer group ${
                       isActive
-                        ? 'bg-slate-900 text-white font-black shadow-xs border-r-3 border-teal-500'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        ? 'bg-slate-900 text-white font-bold shadow-xs border-r-3 border-teal-500'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -266,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     {item.badge && (
                       <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold flex-shrink-0 ${
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold flex-shrink-0 ${
                           isActive
                             ? 'bg-white/20 text-teal-200'
                             : 'bg-slate-100 text-slate-500'

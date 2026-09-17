@@ -674,28 +674,64 @@ export const EmployeeProfileView: React.FC<EmployeeProfileViewProps> = ({
 
       </div>
 
-      {/* 12 PROFILE NAVIGATION TABS */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-1.5 overflow-x-auto scrollbar-thin">
-        <div className="flex items-center gap-1 min-w-max">
-          {tabsList.map((tab) => {
+      {/* 12 PROFILE NAVIGATION TABS - INTENTIONAL TWO ROWS */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-2 space-y-1.5 w-full min-w-0 max-w-full" id="employee-profile-tabs-navigation">
+        {/* ROW 1: Tabs 1 to 6 */}
+        <div className="flex flex-wrap items-stretch gap-1.5 w-full min-w-0">
+          {tabsList.slice(0, 6).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
+                id={`profile-tab-${tab.key}`}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex-1 min-w-[120px] md:min-w-0 inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold transition-all select-none cursor-pointer text-center ${
                   isActive
                     ? 'bg-red-800 text-white shadow-2xs'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-gray-500'}`} />
-                <span>{tab.label}</span>
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                <span className="min-w-0 text-center leading-snug break-words [overflow-wrap:anywhere]">{tab.label}</span>
                 {typeof tab.count === 'number' && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                  <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-mono font-bold shrink-0 leading-none ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ROW 2: Tabs 7 to 12 */}
+        <div className="flex flex-wrap items-stretch gap-1.5 w-full min-w-0">
+          {tabsList.slice(6, 12).map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            const isLongLabel = tab.key === 'transfers_resignations';
+            return (
+              <button
+                key={tab.key}
+                id={`profile-tab-${tab.key}`}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`${
+                  isLongLabel ? 'flex-[1.3_1_0%]' : 'flex-1'
+                } min-w-[120px] md:min-w-0 inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold transition-all select-none cursor-pointer text-center ${
+                  isActive
+                    ? 'bg-red-800 text-white shadow-2xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                <span className="min-w-0 text-center leading-snug break-words [overflow-wrap:anywhere]">{tab.label}</span>
+                {typeof tab.count === 'number' && (
+                  <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-mono font-bold shrink-0 leading-none ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-700'
                   }`}>
                     {tab.count}
                   </span>

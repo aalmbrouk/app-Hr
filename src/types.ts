@@ -34,6 +34,8 @@ export type IncrementType =
   | 'ترقية استثنائية'
   | 'تسوية وضع'
   | 'علاوة يدوية'
+  | 'علاوة دورية'
+  | 'علاوة سنوية'
   | 'علاوة تعيين'
   | 'تعديل إداري آخر'
   | 'تلقائية'
@@ -329,6 +331,19 @@ export interface CareerPromotionRecord {
 
 // CareerMovement alias for comprehensive career history
 export type CareerMovement = CareerPromotionRecord;
+
+export interface IntermediateCareerStep {
+  id: string;
+  grade: string;
+  movementType: CareerActionType;
+  previousGrade?: string;
+  decisionNumber?: string;
+  decisionDate?: string;
+  effectiveDate?: string;
+  entitlementDate?: string;
+  issuingAuthority?: string;
+  notes?: string;
+}
 
 export interface UnlinkedHistoricalCareerRecord {
   id: string;

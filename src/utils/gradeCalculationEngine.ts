@@ -270,6 +270,41 @@ export function getLatestEffectiveGradeInfo(
     });
   }
 
+  // 1.5. Current Recorded Grade Baseline:
+  // When an employee has intermediate career records (between appointment and current grade),
+  // ensure the recorded current grade (if different from appointment and has gradeEntryDate)
+  // is recognized in the chronological timeline so it is not superseded by intermediate steps.
+  const currentRecordedGrade = (employee.jobGrade || '').trim();
+  const currentGradeDate = employee.gradeEntryDate || (employee as any).currentGradeDateStorage || '';
+  const isCurrentBeforeCutoff = !cutoffLimit || (currentGradeDate && currentGradeDate <= cutoffLimit);
+
+  if (
+    currentRecordedGrade &&
+    currentRecordedGrade !== initialAppGrade &&
+    currentGradeDate &&
+    isCurrentBeforeCutoff
+  ) {
+    const isSettle = (employee.transactionType || '').includes('تسوية');
+    const isExcep = (employee.transactionType || '').includes('استثنائية');
+    const actType: CareerActionType = isSettle ? 'تسوية وضع' : (isExcep ? 'ترقية استثنائية' : 'ترقية');
+
+    events.push({
+      id: `current-grade-${empId}`,
+      source: 'سجل_مسيرة',
+      actionType: employee.transactionType || actType,
+      normalizedAction: actType,
+      isGradeChanging: true,
+      isIncrementOnly: false,
+      previousGrade: initialAppGrade || '',
+      newGrade: currentRecordedGrade,
+      increments: employee.currentIncrement ?? 1,
+      effectiveDate: currentGradeDate,
+      decisionDate: currentGradeDate,
+      decisionNumber: 'الدرجة الحالية المسجلة',
+      notes: `الدرجة الحالية المسجلة بملف الموظف (${employee.transactionType || 'ترقية'})`
+    });
+  }
+
   // 2. Direct Career Promotion Records
   careerRecords
     .filter((c) => c.employeeId === empId || (fileNum && (c.fileNumber || '').trim() === fileNum))
@@ -772,6 +807,29 @@ export function calculateEmployeeCurrentGrade(
       decisionDate: hireDate,
       decisionNumber: 'قرار التعيين الأصلي',
       notes: `نظام التعيين: ${employee.appointmentSalarySystem || 'قانون 15'}`
+    });
+  }
+
+  // Current Recorded Grade Baseline
+  const currentJobGradeVal = (employee.jobGrade || '').trim();
+  const currentGradeDateVal = employee.gradeEntryDate || (employee as any).currentGradeDateStorage || '';
+  if (currentJobGradeVal && currentJobGradeVal !== (employee.appointmentGrade || '').trim() && currentGradeDateVal) {
+    const isSettle = (employee.transactionType || '').includes('تسوية');
+    const isExcep = (employee.transactionType || '').includes('استثنائية');
+    const actType: CareerActionType = isSettle ? 'تسوية وضع' : (isExcep ? 'ترقية استثنائية' : 'ترقية');
+
+    events.push({
+      id: `current-grade-${empId}`,
+      source: 'سجل_مسيرة',
+      actionType: employee.transactionType || actType,
+      normalizedAction: actType,
+      previousGrade: employee.appointmentGrade || '',
+      newGrade: currentJobGradeVal,
+      increments: employee.currentIncrement ?? 1,
+      effectiveDate: currentGradeDateVal,
+      decisionDate: currentGradeDateVal,
+      decisionNumber: 'الدرجة الحالية المسجلة',
+      notes: `الدرجة الحالية المسجلة (${employee.transactionType || 'ترقية'})`
     });
   }
 

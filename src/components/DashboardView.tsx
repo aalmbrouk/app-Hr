@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Employee, AuditLog, ActiveTab, LeaveTransaction, PromotionRecord, IncrementRecord, HrRule, EmploymentStatus } from '../types';
 import { calculateLeaveSummary, isOutsideCadreStatus, isEmployeeActiveInCadre } from '../utils/hrCalculations';
 import { calculatePromotionRecommendation, normalizeDateStorage } from '../utils/dateUtils';
-import { DashboardLeaveAlertsWidget } from './DashboardLeaveAlertsWidget';
 import { 
   Users, 
   UserCheck, 
@@ -143,7 +142,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             لوحة القيادة والإحصاءات الحية للكادر الإداري والمالي
           </h2>
           <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-            متابعة دقيقة للكادر الوظيفي ({totalCount} موظفاً) مع نظام التنبيه التلقائي للإجازات المنتهية وغير المعتمدة واستحقاقات الترقية.
+            متابعة دقيقة للكادر الوظيفي ({totalCount} موظفاً) واستحقاقات الترقية والمسار المهني وفق القوانين واللوائح المنظمة.
           </p>
         </div>
 
@@ -253,17 +252,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
       </div>
-
-      {/* DEDICATED AUTOMATED LEAVE ALERTS WIDGET */}
-      <DashboardLeaveAlertsWidget
-        employees={employees}
-        leaves={leaves}
-        rules={rules}
-        setActiveTab={setActiveTab}
-        onUpdateLeaveStatus={onUpdateLeaveStatus}
-        onUpdateEmployeeStatus={onUpdateEmployeeStatus}
-        onAddAuditLog={onAddAuditLog}
-      />
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
