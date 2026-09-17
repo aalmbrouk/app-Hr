@@ -1,12 +1,41 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, User, FileText, ArrowRight, CornerDownLeft, Sparkles, X } from 'lucide-react';
-import { Employee, CareerPromotionRecord } from '../types';
-import { globalEmployeeSearch, GlobalSearchResult } from '../utils/globalSearchEngine';
+import { 
+  Search, 
+  User, 
+  FileText, 
+  Settings, 
+  Wrench, 
+  ChevronRight, 
+  Sparkles, 
+  X, 
+  CornerDownLeft, 
+  ArrowRight,
+  Filter,
+  Layers,
+  Award,
+  Calendar,
+  Clock,
+  HardDrive,
+  Users,
+  ShieldAlert,
+  Sliders,
+  CheckCircle2,
+  FileCode2,
+  AlertCircle
+} from 'lucide-react';
+import { Employee, CareerPromotionRecord, ActiveTab } from '../types';
+import { 
+  globalSmartSearch, 
+  GlobalSearchResult, 
+  SearchCategory,
+  groupSearchResultsByCategory 
+} from '../utils/globalSearchEngine';
 
 interface GlobalQuickSearchProps {
   employees: Employee[];
   careerRecords?: CareerPromotionRecord[];
   onSelectEmployee: (employee: Employee) => void;
+  onSelectResult?: (result: GlobalSearchResult) => void;
   className?: string;
 }
 
@@ -14,27 +43,41 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
   employees,
   careerRecords = [],
   onSelectEmployee,
+  onSelectResult,
   className = ''
 }) => {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'all' | SearchCategory>('all');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Compute search results with priority ranking
-  const results: GlobalSearchResult[] = useMemo(() => {
+  // Compute search results across all categories
+  const allResults: GlobalSearchResult[] = useMemo(() => {
     if (!query.trim()) return [];
-    return globalEmployeeSearch(query, employees, careerRecords, 10);
+    return globalSmartSearch(query, employees, careerRecords, 30);
   }, [query, employees, careerRecords]);
 
-  // Reset selected index on new query
+  // Filtered by selected category chip if any
+  const visibleResults = useMemo(() => {
+    if (activeCategoryFilter === 'all') return allResults;
+    return allResults.filter(r => r.category === activeCategoryFilter);
+  }, [allResults, activeCategoryFilter]);
+
+  // Grouped for display
+  const grouped = useMemo(() => {
+    return groupSearchResultsByCategory(visibleResults);
+  }, [visibleResults]);
+
+  // Reset selected index on query or category change
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query]);
+  }, [query, activeCategoryFilter]);
 
-  // Handle outside clicks to close dropdown
+  // Close on outside clicks
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -45,7 +88,7 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  // Global Keyboard Shortcut: Ctrl + K (or Cmd + K)
+  // Keyboard shortcut: Ctrl + K or Cmd + K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -59,10 +102,14 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSelect = (emp: Employee) => {
+  const handleExecuteResult = (res: GlobalSearchResult) => {
     setIsOpen(false);
     setQuery('');
-    onSelectEmployee(emp);
+    if (onSelectResult) {
+      onSelectResult(res);
+    } else if (res.employee) {
+      onSelectEmployee(res.employee);
+    }
   };
 
   const handleKeyDownInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -72,50 +119,89 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
       inputRef.current?.blur();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (results.length > 0) {
-        setSelectedIndex((prev) => (prev + 1) % results.length);
+      if (visibleResults.length > 0) {
+        setSelectedIndex(prev => (prev + 1) % visibleResults.length);
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (results.length > 0) {
-        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+      if (visibleResults.length > 0) {
+        setSelectedIndex(prev => (prev - 1 + visibleResults.length) % visibleResults.length);
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (results.length > 0 && results[selectedIndex]) {
-        handleSelect(results[selectedIndex].employee);
+      if (visibleResults.length > 0 && visibleResults[selectedIndex]) {
+        handleExecuteResult(visibleResults[selectedIndex]);
       }
     }
   };
 
+  const getCategoryIcon = (category: SearchCategory) => {
+    switch (category) {
+      case 'employees':
+        return <User className="w-4 h-4 text-blue-600" />;
+      case 'reports':
+        return <FileText className="w-4 h-4 text-emerald-600" />;
+      case 'tools':
+        return <Wrench className="w-4 h-4 text-amber-600" />;
+      case 'features':
+        return <Layers className="w-4 h-4 text-indigo-600" />;
+    }
+  };
+
+  const getCategoryLabel = (category: SearchCategory) => {
+    switch (category) {
+      case 'employees':
+        return 'الموظفون';
+      case 'reports':
+        return 'التقارير';
+      case 'tools':
+        return 'الأدوات والإجراءات';
+      case 'features':
+        return 'الخصائص والإعدادات';
+    }
+  };
+
+  const getActionLabel = (res: GlobalSearchResult) => {
+    if (res.category === 'employees') return 'فتح ملف الموظف';
+    if (res.category === 'reports') return 'فتح التقرير';
+    if (res.category === 'tools') return 'فتح الإجراء';
+    return 'الانتقال للخاصية';
+  };
+
   return (
-    <div ref={containerRef} className={`relative ${className}`} id="global-quick-search-container">
-      {/* Search Input Box */}
-      <div className="relative flex items-center">
-        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-red-300 pointer-events-none flex items-center gap-1">
-          <Search className="w-4 h-4 text-amber-400" />
+    <div ref={containerRef} className={`relative ${className}`} id="global-smart-search-container">
+      {/* Search Input Bar */}
+      <div className="relative flex items-center w-full">
+        {/* Search Icon & Prefix Label */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center gap-1.5">
+          <Search className="w-4 h-4 text-teal-600" />
+          <span className="hidden sm:inline-block text-[11px] font-bold text-slate-500 border-l border-slate-300 pl-1.5 ml-1">
+            البحث الشامل
+          </span>
         </div>
 
         <input
           ref={inputRef}
+          id="global-smart-search-input"
           type="text"
           value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
           onFocus={() => {
             if (query.trim()) setIsOpen(true);
           }}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
-          }}
           onKeyDown={handleKeyDownInput}
-          placeholder="ابحث باسم الموظف أو الرقم الوطني أو الرقم الوظيفي أو أي بيانات..."
-          aria-label="Global Quick Search - بحث سريع"
-          className="w-full sm:w-[340px] md:w-[420px] lg:w-[480px] bg-red-950/70 hover:bg-red-950/90 focus:bg-white text-white focus:text-slate-900 pr-10 pl-20 py-2 rounded-xl text-xs font-bold border border-red-700/80 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/30 transition-all shadow-inner placeholder:text-red-300/70"
+          placeholder="ابحث عن موظف، تقرير، أداة، إجراء أو خاصية... (Ctrl+K)"
+          className="w-full pl-20 pr-32 py-2 text-xs sm:text-sm bg-white/95 text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 focus:bg-white transition-all"
+          autoComplete="off"
+          dir="rtl"
         />
 
-        {/* Clear Button & Keyboard Shortcut Badge */}
+        {/* Clear and Keyboard Shortcut */}
         <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-          {query ? (
+          {query && (
             <button
               type="button"
               onClick={() => {
@@ -123,109 +209,204 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
                 setIsOpen(false);
                 inputRef.current?.focus();
               }}
-              className="p-1 rounded-md text-red-300 hover:text-white hover:bg-red-800/80 transition-colors"
-              title="مسح البحث"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              title="مسح نص البحث"
             >
               <X className="w-3.5 h-3.5" />
             </button>
-          ) : (
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold text-red-200/80 bg-red-900/60 border border-red-700/60 rounded-md select-none">
-              <span>Ctrl</span>
-              <span>+</span>
-              <span>K</span>
-            </kbd>
           )}
+          <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-slate-600 bg-slate-100 border border-slate-200 rounded shadow-xs select-none">
+            <span className="text-[9px]">Ctrl</span>+<span>K</span>
+          </kbd>
         </div>
       </div>
 
-      {/* Results Dropdown Panel */}
-      {isOpen && query.trim() && (
+      {/* Results Dropdown Palette */}
+      {isOpen && query.trim().length > 0 && (
         <div 
-          className="absolute right-0 top-full mt-2 w-full sm:w-[460px] md:w-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden text-right animate-in fade-in slide-in-from-top-1 duration-150"
-          id="global-search-results-dropdown"
+          ref={dropdownRef}
+          className="absolute z-50 right-0 top-full mt-2 w-full min-w-[340px] md:min-w-[620px] max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150"
+          dir="rtl"
         >
-          {/* Header Info */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
-            <div className="flex items-center gap-1.5">
-              <span className="text-red-700 font-extrabold">نتائج البحث السريع</span>
-              <span className="bg-red-100 text-red-800 text-[10px] px-2 py-0.2 rounded-full font-black">
-                {results.length}
-              </span>
+          {/* Header with category chips */}
+          <div className="bg-slate-50/90 p-2.5 border-b border-slate-200/80 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-600 ml-1">التصنيف:</span>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('all')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  activeCategoryFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+                }`}
+              >
+                الكل ({allResults.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('employees')}
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
+                  activeCategoryFilter === 'employees'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+                }`}
+              >
+                <User className="w-3 h-3" />
+                الموظفون ({grouped.employees.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('reports')}
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
+                  activeCategoryFilter === 'reports'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+                }`}
+              >
+                <FileText className="w-3 h-3" />
+                التقارير ({grouped.reports.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('tools')}
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
+                  activeCategoryFilter === 'tools'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+                }`}
+              >
+                <Wrench className="w-3 h-3" />
+                الإجراءات ({grouped.tools.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryFilter('features')}
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
+                  activeCategoryFilter === 'features'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200'
+                }`}
+              >
+                <Layers className="w-3 h-3" />
+                الخصائص ({grouped.features.length})
+              </button>
             </div>
-            <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">
-              اضغط Enter لفتح الملف، أو Esc للإغلاق
-            </span>
+
+            <div className="text-[11px] text-slate-500 font-medium">
+              نتائج البحث عن: <strong className="text-slate-800">"{query}"</strong>
+            </div>
           </div>
 
           {/* Results List */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
-            {results.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                  <Search className="w-5 h-5" />
+          <div className="max-h-[460px] overflow-y-auto divide-y divide-slate-100 p-1.5 space-y-1">
+            {visibleResults.length === 0 ? (
+              <div className="p-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto flex items-center justify-center text-slate-400 mb-3">
+                  <AlertCircle className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="font-extrabold text-sm text-slate-800">لا توجد نتائج مطابقة</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  تأكد من كتابة الاسم أو الرقم الوطني أو الرقم الوظيفي بشكل صحيح
+                <h4 className="text-sm font-bold text-slate-700 mb-1">
+                  لا توجد نتائج مطابقة لـ "{query}"
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  جرّب البحث باسم موظف، رقم وطني، أو كلمات دلالية مثل:
+                  <span className="font-bold text-teal-700"> كفاءة</span>،
+                  <span className="font-bold text-teal-700"> 418</span>،
+                  <span className="font-bold text-teal-700"> استيراد</span>،
+                  <span className="font-bold text-teal-700"> ترقية</span>،
+                  أو <span className="font-bold text-teal-700">إجازة</span>.
                 </p>
               </div>
             ) : (
-              results.map((res, index) => {
-                const emp = res.employee;
-                const isSelected = index === selectedIndex;
+              // Render Categorized Sections
+              (['reports', 'tools', 'features', 'employees'] as SearchCategory[]).map(cat => {
+                const catItems = visibleResults.filter(r => r.category === cat);
+                if (catItems.length === 0) return null;
 
                 return (
-                  <div
-                    key={emp.id}
-                    onClick={() => handleSelect(emp)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    className={`p-3.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected ? 'bg-red-50/80 border-r-4 border-red-700' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      {/* Employee Name & Job Grade */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <User className="w-4 h-4 text-red-700 shrink-0" />
-                          <span className="font-black text-xs text-slate-900 truncate">
-                            {emp.fullName}
-                          </span>
-                        </div>
-                        <span className="shrink-0 bg-slate-100 text-slate-800 text-[10px] px-2 py-0.5 rounded-md font-bold border border-slate-200">
-                          الدرجة: {emp.jobGrade} {emp.currentIncrement ? `(علاوة ${emp.currentIncrement})` : ''}
-                        </span>
-                      </div>
-
-                      {/* Details row: Job Number, National ID */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[11px] text-slate-600 font-mono">
-                        <span className="flex items-center gap-1 font-bold text-red-950">
-                          <span className="text-[10px] text-slate-500 font-sans font-normal">الرقم الوظيفي:</span>
-                          <span>{emp.jobNumber || '—'}</span>
-                        </span>
-                        <span className="flex items-center gap-1 font-bold text-slate-700">
-                          <span className="text-[10px] text-slate-500 font-sans font-normal">الرقم الوطني:</span>
-                          <span>{emp.nationalId || '—'}</span>
-                        </span>
-                      </div>
-
-                      {/* Department / Work Location / Matched Reason */}
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-slate-500">
-                        <span className="truncate max-w-[200px] text-slate-700 font-medium">
-                          {emp.department || 'إدارة عامة'}
-                          {emp.workLocation ? ` - ${emp.workLocation}` : ''}
-                        </span>
-
-                        {res.matchDescription && (
-                          <span className="text-[10px] bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.2 rounded font-semibold truncate">
-                            {res.matchDescription}
-                          </span>
-                        )}
-                      </div>
+                  <div key={cat} className="pt-2 pb-1">
+                    {/* Section Header */}
+                    <div className="px-3 py-1 flex items-center justify-between text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      <span className="flex items-center gap-1.5">
+                        {getCategoryIcon(cat)}
+                        <span>{getCategoryLabel(cat)}</span>
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        {catItems.length}
+                      </span>
                     </div>
 
-                    <div className="shrink-0 text-slate-400 flex items-center">
-                      <CornerDownLeft className="w-4 h-4 text-red-700" />
+                    {/* Items */}
+                    <div className="space-y-1">
+                      {catItems.map((item) => {
+                        const globalIndex = visibleResults.findIndex(r => r.id === item.id);
+                        const isSelected = globalIndex === selectedIndex;
+
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => handleExecuteResult(item)}
+                            onMouseEnter={() => setSelectedIndex(globalIndex)}
+                            className={`group relative p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                              isSelected
+                                ? 'bg-teal-50/90 border border-teal-200 text-slate-900 shadow-xs'
+                                : 'hover:bg-slate-50 border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                                isSelected 
+                                  ? 'bg-teal-600 text-white shadow-xs' 
+                                  : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
+                              }`}>
+                                {getCategoryIcon(item.category)}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-teal-900">
+                                    {item.title}
+                                  </span>
+                                  {item.badge && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  {item.matchDetail && (
+                                    <span className="text-[10px] text-teal-700 bg-teal-100/70 px-1.5 py-0.2 rounded font-medium">
+                                      {item.matchDetail}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {item.subtitle && (
+                                  <p className="text-[11px] text-slate-600 font-medium truncate mt-0.5">
+                                    {item.subtitle}
+                                  </p>
+                                )}
+
+                                {item.description && (
+                                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                    {item.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Button Indicator */}
+                            <div className="shrink-0 flex items-center gap-1.5">
+                              <span className={`text-[11px] font-bold px-2 py-1 rounded-lg transition-colors flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-teal-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
+                              }`}>
+                                <span>{getActionLabel(item)}</span>
+                                <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -233,13 +414,27 @@ export const GlobalQuickSearch: React.FC<GlobalQuickSearchProps> = ({
             )}
           </div>
 
-          {/* Footer of Dropdown */}
-          {results.length > 0 && (
-            <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
-              <span>انقر بالماوس أو اضغط Enter لفتح الملف التعريفي الشامل للموظف</span>
-              <span className="font-mono text-slate-400">Ctrl + K</span>
+          {/* Footer Guide */}
+          <div className="bg-slate-50 px-3 py-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[10px]">↑↓</kbd>
+                <span>للتنقل</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[10px]">Enter</kbd>
+                <span>للاختيار</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[10px]">Esc</kbd>
+                <span>للإغلاق</span>
+              </span>
             </div>
-          )}
+
+            <span className="font-semibold text-slate-600 text-[10px]">
+              منظومة مصرف الدم المركزي المرج
+            </span>
+          </div>
         </div>
       )}
     </div>

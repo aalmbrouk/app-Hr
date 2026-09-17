@@ -13,7 +13,8 @@ import {
   EmployeeQualificationRecord, 
   GeneralProcedure,
   HrRule,
-  SystemSettings
+  SystemSettings,
+  ActiveTab
 } from '../types';
 import { 
   ReportType, 
@@ -73,7 +74,8 @@ import {
   FileCode2,
   FileBox,
   ChevronDown,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
@@ -95,6 +97,7 @@ interface ReportsViewProps {
   officialLogoUrl?: string;
   currentUser?: string;
   onAddAuditLog?: (action: any, details: string, employeeId?: number) => void;
+  onNavigateToTab?: (tab: ActiveTab) => void;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -114,7 +117,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   settings,
   officialLogoUrl,
   currentUser = 'مسؤول الموارد البشرية',
-  onAddAuditLog
+  onAddAuditLog,
+  onNavigateToTab
 }) => {
   // ----------------------------------------------------
   // BUILDER STATE
@@ -640,6 +644,36 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       </div>
 
+      {/* Direct Link to Official Annual Efficiency Report (تقرير كفاءة) */}
+      <div className="bg-slate-900/90 border border-teal-500/30 rounded-3xl p-4 md:p-5 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shrink-0">
+            <Award className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm md:text-base font-bold text-white">
+                تقارير الكفاءة السنوية (تقرير كفاءة الموظف الرسمي A4)
+              </h3>
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-700">
+                النموذج المعتمد بنظام النسبة
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+              إصدار تقارير الكفاءة السنوية الفردية والجماعية للكوادر الطبية والإدارية بصيغة A4 الرسمية المتوافقة مع معايير وزارة الصحة الليبية.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigateToTab?.('annual_evaluations')}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all cursor-pointer"
+        >
+          <span>الانتقال لتقارير الكفاءة</span>
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+        </button>
+      </div>
+
       {/* 2. Quick Reports Presets Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2 print:hidden">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
@@ -648,6 +682,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onNavigateToTab?.('annual_evaluations')}
+            className="px-3 py-1.5 rounded-xl bg-teal-950/90 hover:bg-teal-900 text-teal-300 border border-teal-700/80 font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Award className="w-3.5 h-3.5 text-teal-400" />
+            <span>تقرير كفاءة الموظف السنوي (A4)</span>
+          </button>
           <button
             type="button"
             onClick={() => handleApplyQuickReport('all')}

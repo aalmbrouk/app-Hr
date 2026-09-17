@@ -86,6 +86,7 @@ import { EmployeeHistoryView } from './components/EmployeeHistoryView';
 import { HrRulesSettingsView } from './components/HrRulesSettingsView';
 import { GeneralProceduresView } from './components/GeneralProceduresView';
 import { OrgStructureView } from './components/OrgStructureView';
+import { GlobalSearchResult } from './utils/globalSearchEngine';
 
 export default function App() {
   // Authentication state
@@ -101,6 +102,30 @@ export default function App() {
   const handleSelectEmployeeFromSearch = (emp: Employee) => {
     setSelectedEmployeeForProfileId(emp.id);
     setActiveTab('employees');
+  };
+
+  const handleSelectGlobalSearchResult = (result: GlobalSearchResult) => {
+    if (result.category === 'employees' && result.employee) {
+      handleSelectEmployeeFromSearch(result.employee);
+      return;
+    }
+
+    if (result.actionType === 'open_modal' && result.id === 'tool_system_backup') {
+      setIsBackupModalOpen(true);
+      return;
+    }
+
+    if (result.actionType === 'open_modal' && result.id === 'report_employee_badge') {
+      setActiveTab('employees');
+      if (employees.length > 0) {
+        setPrintCardEmp(employees[0]);
+      }
+      return;
+    }
+
+    if (result.targetTab) {
+      setActiveTab(result.targetTab);
+    }
   };
 
   // Database initialization / loading status
@@ -912,6 +937,7 @@ export default function App() {
         employees={employees}
         careerRecords={careerRecords}
         onSelectEmployee={handleSelectEmployeeFromSearch}
+        onSelectResult={handleSelectGlobalSearchResult}
       />
 
       {corruptionAlert && (
@@ -1238,6 +1264,7 @@ export default function App() {
               officialLogoUrl={settings?.officialLogoUrl}
               currentUser={currentUser?.displayName || currentUser?.username || 'المسؤول'}
               onAddAuditLog={(action, details, employeeId) => logAction(action, details, employeeId)}
+              onNavigateToTab={(tab) => setActiveTab(tab)}
             />
           )}
 

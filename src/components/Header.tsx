@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, ActiveTab, Employee, CareerPromotionRecord } from '../types';
-import { LogOut, Shield, Database, Clock, HardDrive, FileCode, Droplet, UserCheck } from 'lucide-react';
+import { LogOut, Shield, Database, Clock, HardDrive, FileCode, Droplet, UserCheck, Sparkles } from 'lucide-react';
 import { GlobalQuickSearch } from './GlobalQuickSearch';
+import { GlobalSearchResult } from '../utils/globalSearchEngine';
 
 interface HeaderProps {
   currentUser: UserAccount | null;
@@ -13,6 +14,7 @@ interface HeaderProps {
   employees: Employee[];
   careerRecords?: CareerPromotionRecord[];
   onSelectEmployee: (employee: Employee) => void;
+  onSelectResult?: (result: GlobalSearchResult) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickBackup,
   employees,
   careerRecords = [],
-  onSelectEmployee
+  onSelectEmployee,
+  onSelectResult
 }) => {
   const [timeString, setTimeString] = useState<string>('');
 
@@ -48,28 +51,37 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="bg-gradient-to-r from-red-950 via-red-900 to-red-950 text-white shadow-lg border-b border-red-800/60 sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30 transition-colors" dir="rtl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           
           {/* Logo & Title */}
           <div className="flex items-center gap-3.5 w-full md:w-auto justify-between md:justify-start">
-            <div className="flex items-center gap-3.5">
-              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-white border-2 border-red-400 p-0.5 shadow-lg group shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center w-12 h-12 rounded-xl bg-white border border-slate-200 p-0.5 shadow-sm group shrink-0">
                 <img 
                   src="/logo.jpg" 
                   alt="شعار مصرف الدم المركزي بلدية المرج - ليبيا" 
-                  className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform"
+                  className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform"
                 />
-                <div className="absolute -bottom-1 -right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-red-950 shadow-sm" title="قاعدة البيانات متصلة ومحميّة" />
+                <div 
+                  className="absolute -bottom-1 -right-1 bg-emerald-500 w-3.5 h-3.5 rounded-full border-2 border-slate-900 shadow-xs" 
+                  title="قاعدة البيانات متصلة ومحميّة" 
+                />
               </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-black tracking-wide text-white drop-shadow-sm">
-                  مصرف الدم المركزي بلدية المرج - ليبيا
-                </h1>
-                <p className="text-xs text-red-200/90 font-medium flex items-center gap-2 mt-0.5">
-                  <span>منظومة إدارة الموارد البشرية والحسابات الوظيفية (Excel VBA Core)</span>
-                  <span className="bg-red-800/90 px-2.5 py-0.5 rounded-md text-[10px] text-red-100 border border-red-700/80 font-bold">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base md:text-lg font-black tracking-tight text-white drop-shadow-xs">
+                    مصرف الدم المركزي المرج
+                  </h1>
+                  <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-teal-300 bg-teal-950/80 border border-teal-700/50 px-2 py-0.5 rounded-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                    بلدية المرج - ليبيا
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-medium flex items-center gap-2 mt-0.5">
+                  <span className="truncate">منظومة الشؤون الإدارية والموارد البشرية (Excel VBA Core)</span>
+                  <span className="bg-slate-800 px-2 py-0.2 rounded text-[10px] text-teal-300 border border-slate-700 font-bold shrink-0">
                     {employeeCount.toLocaleString('ar-LY')} موظف
                   </span>
                 </p>
@@ -80,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="md:hidden flex items-center gap-2">
               <button
                 onClick={onLogout}
-                className="p-2 rounded-lg bg-red-800/60 hover:bg-red-700 text-red-100 border border-red-700 transition-colors"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
                 title="تسجيل الخروج"
               >
                 <LogOut className="w-4 h-4" />
@@ -88,57 +100,59 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Global Quick Search - Always visible in the main header */}
-          <div className="flex-1 max-w-xl mx-2 flex justify-center order-3 md:order-2 w-full md:w-auto">
+          {/* Global Smart Search Bar - Always accessible in the top header */}
+          <div className="flex-1 max-w-xl mx-1 md:mx-4 flex justify-center order-3 md:order-2 w-full md:w-auto">
             <GlobalQuickSearch
               employees={employees}
               careerRecords={careerRecords}
               onSelectEmployee={onSelectEmployee}
+              onSelectResult={onSelectResult}
               className="w-full flex justify-center"
             />
           </div>
 
           {/* Quick Actions & User Profile */}
-          <div className="hidden md:flex items-center gap-3 order-2 md:order-3">
+          <div className="hidden md:flex items-center gap-2.5 order-2 md:order-3">
             <button
               onClick={() => setActiveTab('vba_code')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                 activeTab === 'vba_code'
-                  ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md shadow-amber-500/20'
-                  : 'bg-red-800/50 hover:bg-red-800 text-amber-200 border-red-700'
+                  ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-sm shadow-amber-500/20'
+                  : 'bg-slate-800/80 hover:bg-slate-800 text-amber-200 border-slate-700'
               }`}
+              title="أكواد VBA ووحدات الماكرو"
             >
-              <FileCode className="w-4 h-4" />
-              <span>أكواد VBA والتصدير</span>
+              <FileCode className="w-3.5 h-3.5" />
+              <span>أكواد VBA</span>
             </button>
 
             <button
               onClick={onQuickBackup}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-800/40 hover:bg-red-800/80 text-red-100 border border-red-700/60 transition-all"
-              title="توليد نسخة احتياطية فورية"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
+              title="توليد نسخة احتياطية فورية لقاعدة البيانات"
             >
-              <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
-              <span>نسخة احتياطية</span>
+              <HardDrive className="w-3.5 h-3.5 text-teal-400" />
+              <span>نسخ احتياطي</span>
             </button>
 
             {currentUser && (
-              <div className="flex items-center gap-2 bg-red-950/80 border border-red-800/80 rounded-xl px-3 py-1.5">
-                <div className="w-8 h-8 rounded-lg bg-red-800 border border-red-600 flex items-center justify-center text-red-100 font-black text-xs">
+              <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-teal-900/60 border border-teal-700/60 flex items-center justify-center text-teal-200 font-black text-[11px]">
                   {currentUser.role.includes('1') ? 'A1' : 'A2'}
                 </div>
                 <div className="text-right leading-tight">
                   <p className="text-xs font-bold text-white flex items-center gap-1">
-                    <UserCheck className="w-3 h-3 text-emerald-400" />
+                    <UserCheck className="w-3 h-3 text-teal-400" />
                     {currentUser.displayName}
                   </p>
-                  <p className="text-[10px] text-red-300 font-mono">{currentUser.role}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">{currentUser.role}</p>
                 </div>
                 <button
                   onClick={onLogout}
-                  className="mr-2 p-1.5 rounded-lg bg-red-900/80 hover:bg-red-700 text-red-200 hover:text-white transition-colors"
+                  className="mr-1.5 p-1 rounded-md bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
                   title="تسجيل الخروج"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
